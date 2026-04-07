@@ -2,6 +2,7 @@ import React, { useState, useCallback, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Play, Pause, RotateCcw, ChevronLeft, Plus, Layers, ArrowRight } from 'lucide-react';
 import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import TimerDisplay from '../components/timer/TimerDisplay';
 import IntervalForm from '../components/timer/IntervalForm';
@@ -17,7 +18,6 @@ export default function TaskTimer({ taskId, onBack }) {
   const intervals = task?.intervals || [];
   const mode = task?.type || 'serial';
   const isParallel = mode === 'parallel';
-  const [showForm, setShowForm] = useState(false);
   const [completedFlash, setCompletedFlash] = useState(false);
   const { playAlarm, vibrate } = useAlarm();
 
@@ -33,7 +33,7 @@ export default function TaskTimer({ taskId, onBack }) {
     toast.success(`¡${task?.name} completado! 🎉`);
   }, [task]);
 
-  const { currentIndex, secondsLeft, isRunning, hasStarted, progress, parallelTimers, start, pause, reset } =
+  const { currentIndex, secondsLeft, isRunning, hasStarted, progress, parallelTimers, start, startAllParallel, startSingle, pause, reset } =
     useTimer(intervals, handleIntervalComplete, handleAllComplete, mode);
 
   // --- Persistent Android notification ---
@@ -53,7 +53,7 @@ export default function TaskTimer({ taskId, onBack }) {
     if (!hasStarted) return;
     let label, secs;
     if (isParallel && parallelTimers.length > 0) {
-      const active = parallelTimers.map((t, i) => ({ ...t, i })).filter(t => !t.done);
+      const active = parallelTimers.map((t, i) => ({ ...t, i })).filter(t => t.running && !t.done);
       if (active.length === 0) return;
       const next = active.reduce((a, b) => a.secondsLeft < b.secondsLeft ? a : b);
       label = intervals[next.i]?.name || 'Timer';
@@ -78,13 +78,14 @@ export default function TaskTimer({ taskId, onBack }) {
 
   if (!task) return null;
 
+  // --- Computed display values ---
   const currentLabel = intervals[currentIndex]?.name || '';
   const currentColor = intervals.length > 0 ? getIntervalColor(currentIndex) : undefined;
 
-  // For parallel mode: find the interval with least time remaining (that isn't done)
-  const activeParallelIndex = isParallel && hasStarted && parallelTimers.length > 0
+  const activeRunning = isParallel ? parallelTimers.filter(t => t.running && !t.done) : [];
+  const activeParallelIndex = activeRunning.length > 0
     ? parallelTimers.reduce((minIdx, t, i, arr) => {
-        if (t.done) return minIdx;
+        if (!t.running || t.done) return minIdx;
         if (minIdx === -1) return i;
         return t.secondsLeft < arr[minIdx].secondsLeft ? i : minIdx;
       }, -1)
@@ -96,6 +97,7 @@ export default function TaskTimer({ taskId, onBack }) {
   const parallelLabel = activeParallelIndex >= 0 ? intervals[activeParallelIndex]?.name : '';
   const parallelColor = activeParallelIndex >= 0 ? getIntervalColor(activeParallelIndex) : undefined;
   const allParallelDone = isParallel && hasStarted && parallelTimers.length > 0 && parallelTimers.every(t => t.done);
+  const anyParallelRunning = parallelTimers.some(t => t.running && !t.done);
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
@@ -105,6 +107,7 @@ export default function TaskTimer({ taskId, onBack }) {
         )}
       </AnimatePresence>
 
+      {/* Header */}
       <div className="flex items-center gap-3 px-4 pt-12 pb-4">
         <Button variant="ghost" size="icon" className="h-10 w-10 rounded-xl -ml-1" onClick={() => { reset(); onBack(); }}>
           <ChevronLeft className="h-5 w-5" />
@@ -116,13 +119,14 @@ export default function TaskTimer({ taskId, onBack }) {
         </span>
       </div>
 
-      <div className="flex justify-center py-6">
+      {/* Timer Display */}
+      <div className="flex justify-center py-4">
         {isParallel ? (
           <TimerDisplay
             secondsLeft={hasStarted ? parallelSecondsLeft : (intervals.length > 0 ? Math.max(...intervals.map(i => i.minutes * 60 + (i.seconds || 0))) : 0)}
             progress={hasStarted ? parallelProgress : 0}
-            label={hasStarted ? (allParallelDone ? '¡Completado!' : `Próximo: ${parallelLabel}`) : (intervals.length > 0 ? 'Todos a la vez' : '')}
-            isRunning={isRunning}
+            label={hasStarted ? (allParallelDone ? '¡Completado!' : (activeRunning.length > 0 ? `Próximo: ${parallelLabel}` : 'Esperando...')) : (intervals.length > 0 ? 'Listo para empezar' : '')}
+            isRunning={anyParallelRunning}
             intervalColor={parallelColor}
           />
         ) : (
@@ -130,43 +134,77 @@ export default function TaskTimer({ taskId, onBack }) {
         )}
       </div>
 
-      <div className="flex items-center justify-center gap-3 px-4 mb-6">
-        {!isRunning ? (
-          <Button onClick={start} disabled={intervals.length === 0} size="lg" className="rounded-full px-10 gap-2 text-base font-semibold h-14 shadow-lg shadow-primary/20">
-            <Play className="h-5 w-5" />{hasStarted ? 'Reanudar' : 'Iniciar'}
-          </Button>
-        ) : (
-          <Button onClick={pause} size="lg" variant="secondary" className="rounded-full px-10 gap-2 text-base font-semibold h-14">
-            <Pause className="h-5 w-5" />Pausar
-          </Button>
-        )}
-        {hasStarted && (
-          <Button onClick={reset} size="lg" variant="outline" className="rounded-full h-14 px-6">
-            <RotateCcw className="h-4 w-4" />
-          </Button>
-        )}
-      </div>
-
-      <div className="flex-1 px-4 overflow-y-auto pb-32">
-        <DraggableIntervalList intervals={intervals} currentIndex={currentIndex} hasStarted={hasStarted} onRemove={(id) => deleteInterval(taskId, id)} onEdit={(id, data) => updateInterval(taskId, id, data)} onReorder={(newList) => reorderIntervals(taskId, newList)} mode={mode} parallelTimers={parallelTimers} />
-      </div>
-
-      {!hasStarted && (
-        <div className="fixed bottom-0 left-0 right-0 px-4 pb-8 pt-4 bg-gradient-to-t from-background via-background to-transparent">
-          <AnimatePresence>
-            {showForm ? (
-              <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 16 }} className="bg-card rounded-2xl border border-border p-4 shadow-xl">
-                <IntervalForm onAdd={(i) => { addInterval(taskId, i); setShowForm(false); }} disabled={false} />
-                <Button variant="ghost" className="w-full mt-2 text-muted-foreground" onClick={() => setShowForm(false)}>Cancelar</Button>
-              </motion.div>
+      {/* Controls */}
+      <div className="flex items-center justify-center gap-3 px-4 mb-4">
+        {isParallel ? (
+          <>
+            {/* Parallel: "Start All" or "Pause All" */}
+            {!anyParallelRunning ? (
+              <Button onClick={startAllParallel} disabled={intervals.length === 0} size="lg" className="rounded-full px-8 gap-2 text-base font-semibold h-12 shadow-lg shadow-primary/20">
+                <Play className="h-5 w-5" />{hasStarted ? 'Reanudar todos' : 'Iniciar todos'}
+              </Button>
             ) : (
-              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
-                <Button variant="outline" className="w-full h-14 rounded-2xl text-base font-semibold gap-2 border-dashed" onClick={() => setShowForm(true)}>
-                  <Plus className="h-5 w-5" />Añadir intervalo
-                </Button>
-              </motion.div>
+              <Button onClick={pause} size="lg" variant="secondary" className="rounded-full px-8 gap-2 text-base font-semibold h-12">
+                <Pause className="h-5 w-5" />Pausar todos
+              </Button>
             )}
-          </AnimatePresence>
+            {hasStarted && (
+              <Button onClick={reset} size="lg" variant="outline" className="rounded-full h-12 px-5">
+                <RotateCcw className="h-4 w-4" />
+              </Button>
+            )}
+          </>
+        ) : (
+          <>
+            {!isRunning ? (
+              <Button onClick={start} disabled={intervals.length === 0} size="lg" className="rounded-full px-10 gap-2 text-base font-semibold h-14 shadow-lg shadow-primary/20">
+                <Play className="h-5 w-5" />{hasStarted ? 'Reanudar' : 'Iniciar'}
+              </Button>
+            ) : (
+              <Button onClick={pause} size="lg" variant="secondary" className="rounded-full px-10 gap-2 text-base font-semibold h-14">
+                <Pause className="h-5 w-5" />Pausar
+              </Button>
+            )}
+            {hasStarted && (
+              <Button onClick={reset} size="lg" variant="outline" className="rounded-full h-14 px-6">
+                <RotateCcw className="h-4 w-4" />
+              </Button>
+            )}
+          </>
+        )}
+      </div>
+
+      {/* Interval list */}
+      <div className={cn("flex-1 px-4 overflow-y-auto", isParallel ? "pb-48" : "pb-32")}>
+        <DraggableIntervalList
+          intervals={intervals}
+          currentIndex={currentIndex}
+          hasStarted={hasStarted}
+          onRemove={(id) => deleteInterval(taskId, id)}
+          onEdit={(id, data) => updateInterval(taskId, id, data)}
+          onReorder={(newList) => reorderIntervals(taskId, newList)}
+          mode={mode}
+          parallelTimers={parallelTimers}
+          onStartSingle={startSingle}
+        />
+      </div>
+
+      {/* Add interval — always visible in parallel mode, toggle in serial */}
+      {(isParallel || !hasStarted) && (
+        <div className="fixed bottom-0 left-0 right-0 px-4 pb-6 pt-3 bg-gradient-to-t from-background via-background to-transparent">
+          {isParallel ? (
+            /* Parallel: always-visible compact inline form */
+            <div className="bg-card rounded-2xl border border-border p-3 shadow-lg">
+              <IntervalForm onAdd={(i) => addInterval(taskId, i)} disabled={false} compact />
+            </div>
+          ) : (
+            /* Serial: toggle form */
+            <AnimatePresence>
+              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
+                <IntervalForm onAdd={(i) => addInterval(taskId, i)} disabled={false} />
+              </motion.div>
+            </AnimatePresence>
+          )}
         </div>
       )}
     </div>
