@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Plus, ChevronRight, Zap, Clock, Trash2, Pencil, X, Check } from 'lucide-react';
+import { Plus, ChevronRight, Zap, Clock, Trash2, Pencil, X, Check, Layers, ArrowRight } from 'lucide-react';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useTasks } from '../lib/useTasks';
@@ -11,24 +11,26 @@ export default function TaskList({ onSelectTask }) {
   const [showNew, setShowNew] = useState(false);
   const [newName, setNewName] = useState('');
   const [newEmoji, setNewEmoji] = useState('🎯');
+  const [newType, setNewType] = useState('serial');
   const [editingId, setEditingId] = useState(null);
   const [editName, setEditName] = useState('');
   const [editEmoji, setEditEmoji] = useState('');
+  const [editType, setEditType] = useState('serial');
 
   const handleCreate = () => {
     if (!newName.trim()) return;
-    const id = createTask(newName.trim(), newEmoji);
-    setNewName(''); setNewEmoji('🎯'); setShowNew(false);
+    const id = createTask(newName.trim(), newEmoji, newType);
+    setNewName(''); setNewEmoji('🎯'); setNewType('serial'); setShowNew(false);
     onSelectTask(id);
   };
 
   const startEdit = (task) => {
-    setEditingId(task.id); setEditName(task.name); setEditEmoji(task.emoji);
+    setEditingId(task.id); setEditName(task.name); setEditEmoji(task.emoji); setEditType(task.type || 'serial');
   };
 
   const confirmEdit = () => {
     if (!editName.trim()) return;
-    updateTask(editingId, { name: editName.trim(), emoji: editEmoji });
+    updateTask(editingId, { name: editName.trim(), emoji: editEmoji, type: editType });
     setEditingId(null);
   };
 
@@ -60,6 +62,14 @@ export default function TaskList({ onSelectTask }) {
                     <Input value={editName} onChange={e => setEditName(e.target.value)} className="flex-1 h-11 text-base" autoFocus onKeyDown={e => e.key === 'Enter' && confirmEdit()} />
                   </div>
                   <div className="flex gap-2">
+                    <button type="button" onClick={() => setEditType('serial')} className={`flex-1 flex items-center justify-center gap-1.5 h-10 rounded-xl border text-sm font-medium transition-colors ${editType === 'serial' ? 'border-primary bg-primary/10 text-primary' : 'border-input bg-card text-muted-foreground'}`}>
+                      <ArrowRight className="h-3.5 w-3.5" /> Serie
+                    </button>
+                    <button type="button" onClick={() => setEditType('parallel')} className={`flex-1 flex items-center justify-center gap-1.5 h-10 rounded-xl border text-sm font-medium transition-colors ${editType === 'parallel' ? 'border-primary bg-primary/10 text-primary' : 'border-input bg-card text-muted-foreground'}`}>
+                      <Layers className="h-3.5 w-3.5" /> Paralelo
+                    </button>
+                  </div>
+                  <div className="flex gap-2">
                     <Button className="flex-1 h-11" onClick={confirmEdit}><Check className="h-4 w-4 mr-1" /> Guardar</Button>
                     <Button variant="outline" className="flex-1 h-11" onClick={() => setEditingId(null)}><X className="h-4 w-4 mr-1" /> Cancelar</Button>
                   </div>
@@ -73,6 +83,9 @@ export default function TaskList({ onSelectTask }) {
                       <div className="flex items-center gap-3 mt-0.5">
                         <span className="text-xs text-muted-foreground">{task.intervals.length} {task.intervals.length === 1 ? 'intervalo' : 'intervalos'}</span>
                         {task.intervals.length > 0 && <span className="text-xs text-muted-foreground flex items-center gap-1"><Clock className="h-3 w-3" />{totalTime(task.intervals)}</span>}
+                        <span className="text-xs text-muted-foreground flex items-center gap-1">
+                          {(task.type || 'serial') === 'parallel' ? <><Layers className="h-3 w-3" />Paralelo</> : <><ArrowRight className="h-3 w-3" />Serie</>}
+                        </span>
                       </div>
                     </div>
                     <div className="flex items-center gap-1">
@@ -103,6 +116,14 @@ export default function TaskList({ onSelectTask }) {
               <div className="flex items-center gap-2">
                 <EmojiPicker value={newEmoji} onChange={setNewEmoji} options={TASK_EMOJIS} />
                 <Input placeholder="Nombre de la tarea" value={newName} onChange={e => setNewName(e.target.value)} className="flex-1 h-11 text-base" autoFocus onKeyDown={e => e.key === 'Enter' && handleCreate()} />
+              </div>
+              <div className="flex gap-2">
+                <button type="button" onClick={() => setNewType('serial')} className={`flex-1 flex items-center justify-center gap-1.5 h-10 rounded-xl border text-sm font-medium transition-colors ${newType === 'serial' ? 'border-primary bg-primary/10 text-primary' : 'border-input bg-card text-muted-foreground'}`}>
+                  <ArrowRight className="h-3.5 w-3.5" /> Serie
+                </button>
+                <button type="button" onClick={() => setNewType('parallel')} className={`flex-1 flex items-center justify-center gap-1.5 h-10 rounded-xl border text-sm font-medium transition-colors ${newType === 'parallel' ? 'border-primary bg-primary/10 text-primary' : 'border-input bg-card text-muted-foreground'}`}>
+                  <Layers className="h-3.5 w-3.5" /> Paralelo
+                </button>
               </div>
               <div className="flex gap-2">
                 <Button className="flex-1 h-11" onClick={handleCreate} disabled={!newName.trim()}><Plus className="h-4 w-4 mr-1" /> Crear</Button>

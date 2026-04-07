@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
-import { GripVertical, Pencil, Trash2, Clock } from 'lucide-react';
+import { GripVertical, Pencil, Trash2, Clock, Volume2, Smartphone } from 'lucide-react';
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import IntervalEditRow from './IntervalEditRow';
@@ -15,8 +15,15 @@ function formatTime(minutes, seconds) {
   return `${s}s`;
 }
 
-export default function DraggableIntervalList({ intervals, currentIndex, hasStarted, onRemove, onEdit, onReorder }) {
+function formatCountdown(totalSecs) {
+  const m = Math.floor(totalSecs / 60);
+  const s = totalSecs % 60;
+  return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+}
+
+export default function DraggableIntervalList({ intervals, currentIndex, hasStarted, onRemove, onEdit, onReorder, mode, parallelTimers }) {
   const [editingId, setEditingId] = useState(null);
+  const isParallel = mode === 'parallel';
 
   const handleDragEnd = (result) => {
     if (!result.destination) return;
@@ -46,13 +53,14 @@ export default function DraggableIntervalList({ intervals, currentIndex, hasStar
           {(provided) => (
             <div ref={provided.innerRef} {...provided.droppableProps} className="space-y-1.5">
               {intervals.map((interval, index) => {
-                const isActive = hasStarted && index === currentIndex;
-                const isDone = hasStarted && index < currentIndex;
+                const pTimer = isParallel && parallelTimers?.[index];
+                const isActive = hasStarted && (isParallel ? (pTimer && !pTimer.done) : index === currentIndex);
+                const isDone = hasStarted && (isParallel ? (pTimer && pTimer.done) : index < currentIndex);
                 const color = getIntervalColor(index);
                 return (
                   <Draggable key={interval.id} draggableId={String(interval.id)} index={index} isDragDisabled={hasStarted}>
                     {(drag, snapshot) => (
-                      <div ref={drag.innerRef} {...drag.draggableProps} className={cn("rounded-xl border transition-all", snapshot.isDragging ? "shadow-lg border-primary/30 bg-card" : "bg-card/80 border-transparent", isActive && "border-primary/30 shadow-sm bg-card")}>
+                      <div ref={drag.innerRef} {...drag.draggableProps} className={cn("rounded-xl border transition-all", snapshot.isDragging ? "shadow-lg border-primary/30 bg-card" : "bg-card/80 border-transparent", isActive && "border-primary/30 shadow-sm bg-card", isDone && "opacity-60")}>
                         {editingId === interval.id ? (
                           <div className="p-1">
                             <IntervalEditRow interval={interval} onSave={(data) => { onEdit(interval.id, data); setEditingId(null); }} onCancel={() => setEditingId(null)} />
@@ -62,7 +70,15 @@ export default function DraggableIntervalList({ intervals, currentIndex, hasStar
                             {!hasStarted && <div {...drag.dragHandleProps} className="p-1 cursor-grab active:cursor-grabbing text-muted-foreground/40 hover:text-muted-foreground"><GripVertical className="h-4 w-4" /></div>}
                             <div className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: color }} />
                             <span className={cn("flex-1 text-sm font-medium truncate", isDone && "line-through text-muted-foreground")}>{interval.name}</span>
-                            <span className="font-mono text-xs text-muted-foreground tabular-nums shrink-0">{formatTime(interval.minutes, interval.seconds)}</span>
+                            {interval.sound && interval.sound !== 'beep' && <Volume2 className="h-3 w-3 text-muted-foreground/50 shrink-0" />}
+                            {interval.vibration && <Smartphone className="h-3 w-3 text-muted-foreground/50 shrink-0" />}
+                            {isParallel && hasStarted && pTimer ? (
+                              <span className={cn("font-mono text-xs tabular-nums shrink-0 font-semibold", pTimer.done ? "text-muted-foreground" : "text-foreground")}>
+                                {pTimer.done ? '✓' : formatCountdown(pTimer.secondsLeft)}
+                              </span>
+                            ) : (
+                              <span className="font-mono text-xs text-muted-foreground tabular-nums shrink-0">{formatTime(interval.minutes, interval.seconds)}</span>
+                            )}
                             {!hasStarted && (
                               <div className="flex gap-0.5">
                                 <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-foreground" onClick={() => setEditingId(interval.id)}><Pencil className="h-3.5 w-3.5" /></Button>

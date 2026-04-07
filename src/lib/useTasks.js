@@ -3,16 +3,16 @@ import { useState, useCallback } from 'react';
 const TASK_EMOJIS = ['🏃', '🍳', '🏠', '📚', '💪', '🎯', '🧘', '🛒', '💻', '🎵'];
 
 const defaultTasks = [
-  { id: 1, name: 'Entrenamiento', emoji: '💪', intervals: [
-    { id: 101, name: 'Calentamiento', minutes: 5, seconds: 0 },
-    { id: 102, name: 'Cardio', minutes: 20, seconds: 0 },
-    { id: 103, name: 'Fuerza', minutes: 15, seconds: 0 },
-    { id: 104, name: 'Estiramiento', minutes: 5, seconds: 0 },
+  { id: 1, name: 'Entrenamiento', emoji: '💪', type: 'serial', intervals: [
+    { id: 101, name: 'Calentamiento', minutes: 5, seconds: 0, sound: 'beep', vibration: false },
+    { id: 102, name: 'Cardio', minutes: 20, seconds: 0, sound: 'beep', vibration: false },
+    { id: 103, name: 'Fuerza', minutes: 15, seconds: 0, sound: 'beep', vibration: false },
+    { id: 104, name: 'Estiramiento', minutes: 5, seconds: 0, sound: 'beep', vibration: false },
   ]},
-  { id: 2, name: 'Cocina', emoji: '🍳', intervals: [
-    { id: 201, name: 'Sofreír cebolla', minutes: 3, seconds: 0 },
-    { id: 202, name: 'Hervir pasta', minutes: 10, seconds: 0 },
-    { id: 203, name: 'Reposar', minutes: 2, seconds: 0 },
+  { id: 2, name: 'Cocina', emoji: '🍳', type: 'parallel', intervals: [
+    { id: 201, name: 'Sofreír cebolla', minutes: 3, seconds: 0, sound: 'beep', vibration: false },
+    { id: 202, name: 'Hervir pasta', minutes: 10, seconds: 0, sound: 'beep', vibration: false },
+    { id: 203, name: 'Reposar', minutes: 2, seconds: 0, sound: 'beep', vibration: false },
   ]}
 ];
 
@@ -29,8 +29,8 @@ export function useTasks() {
     localStorage.setItem('chain-timer-tasks', JSON.stringify(updated));
   };
 
-  const createTask = useCallback((name, emoji) => {
-    const task = { id: Date.now(), name, emoji: emoji || '🎯', intervals: [] };
+  const createTask = useCallback((name, emoji, type) => {
+    const task = { id: Date.now(), name, emoji: emoji || '🎯', type: type || 'serial', intervals: [] };
     save([...tasks, task]);
     return task.id;
   }, [tasks]);
