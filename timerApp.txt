@@ -1,0 +1,682 @@
+import { Toaster } from "@/components/ui/toaster"
+import { QueryClientProvider } from '@tanstack/react-query'
+import { queryClientInstance } from '@/lib/query-client'
+import { BrowserRouter as Router, Route, Routes } from 'react-router-dom';
+import PageNotFound from './lib/PageNotFound';
+import { AuthProvider, useAuth } from '@/lib/AuthContext';
+import UserNotRegisteredError from '@/components/UserNotRegisteredError';
+import Home from './pages/Home';
+
+const AuthenticatedApp = () => {
+  const { isLoadingAuth, isLoadingPublicSettings, authError, navigateToLogin } = useAuth();
+
+  if (isLoadingPublicSettings || isLoadingAuth) {
+    return (
+      <div className="fixed inset-0 flex items-center justify-center">
+        <div className="w-8 h-8 border-4 border-slate-200 border-t-slate-800 rounded-full animate-spin"></div>
+      </div>
+    );
+  }
+
+  if (authError) {
+    if (authError.type === 'user_not_registered') return <UserNotRegisteredError />;
+    else if (authError.type === 'auth_required') { navigateToLogin(); return null; }
+  }
+
+  return (
+    <Routes>
+      <Route path="/" element={<Home />} />
+      <Route path="*" element={<PageNotFound />} />
+    </Routes>
+  );
+};
+
+function App() {
+  return (
+    <AuthProvider>
+      <QueryClientProvider client={queryClientInstance}>
+        <Router>
+          <AuthenticatedApp />
+        </Router>
+        <Toaster />
+      </QueryClientProvider>
+    </AuthProvider>
+  )
+}
+
+export default App
+📁 pages/Home.jsx
+import React, { useState } from 'react';
+import TaskList from './TaskList';
+import TaskTimer from './TaskTimer';
+
+export default function Home() {
+  const [selectedTaskId, setSelectedTaskId] = useState(null);
+
+  if (selectedTaskId !== null) {
+    return <TaskTimer taskId={selectedTaskId} onBack={() => setSelectedTaskId(null)} />;
+  }
+
+  return <TaskList onSelectTask={(id) => setSelectedTaskId(id)} />;
+}
+📁 pages/TaskList.jsx
+import React, { useState } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { Plus, ChevronRight, Zap, Clock, Trash2, Pencil, X, Check } from 'lucide-react';
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { useTasks } from '../lib/useTasks';
+import EmojiPicker from '../components/tasks/EmojiPicker';
+
+export default function TaskList({ onSelectTask }) {
+  const { tasks, createTask, updateTask, deleteTask, TASK_EMOJIS } = useTasks();
+  const [showNew, setShowNew] = useState(false);
+  const [newName, setNewName] = useState('');
+  const [newEmoji, setNewEmoji] = useState('🎯');
+  const [editingId, setEditingId] = useState(null);
+  const [editName, setEditName] = useState('');
+  const [editEmoji, setEditEmoji] = useState('');
+
+  const handleCreate = () => {
+    if (!newName.trim()) return;
+    const id = createTask(newName.trim(), newEmoji);
+    setNewName(''); setNewEmoji('🎯'); setShowNew(false);
+    onSelectTask(id);
+  };
+
+  const startEdit = (task) => {
+    setEditingId(task.id); setEditName(task.name); setEditEmoji(task.emoji);
+  };
+
+  const confirmEdit = () => {
+    if (!editName.trim()) return;
+    updateTask(editingId, { name: editName.trim(), emoji: editEmoji });
+    setEditingId(null);
+  };
+
+  const totalTime = (intervals) => {
+    const secs = intervals.reduce((s, i) => s + i.minutes * 60 + (i.seconds || 0), 0);
+    const m = Math.floor(secs / 60), s = secs % 60;
+    return m > 0 ? `${m}m${s > 0 ? ` ${s}s` : ''}` : `${s}s`;
+  };
+
+  return (
+    <div className="min-h-screen bg-background flex flex-col">
+      <div className="px-4 pt-12 pb-6">
+        <div className="flex items-center gap-2 mb-1">
+          <Zap className="h-5 w-5 text-primary" />
+          <span className="text-xs font-semibold text-primary uppercase tracking-widest">Chain Timer</span>
+        </div>
+        <h1 className="text-3xl font-extrabold text-foreground tracking-tight">Mis Tareas</h1>
+        <p className="text-muted-foreground text-sm mt-1">Selecciona una tarea para empezar</p>
+      </div>
+
+      <div className="flex-1 px-4 space-y-3 overflow-y-auto pb-32">
+        <AnimatePresence mode="popLayout">
+          {tasks.map((task, i) => (
+            <motion.div key={task.id} layout initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, scale: 0.92 }} transition={{ delay: i * 0.04 }}>
+              {editingId === task.id ? (
+                <div className="bg-card rounded-2xl border border-border p-4 space-y-3">
+                  <div className="flex items-center gap-2">
+                    <EmojiPicker value={editEmoji} onChange={setEditEmoji} options={TASK_EMOJIS} />
+                    <Input value={editName} onChange={e => setEditName(e.target.value)} className="flex-1 h-11 text-base" autoFocus onKeyDown={e => e.key === 'Enter' && confirmEdit()} />
+                  </div>
+                  <div className="flex gap-2">
+                    <Button className="flex-1 h-11" onClick={confirmEdit}><Check className="h-4 w-4 mr-1" /> Guardar</Button>
+                    <Button variant="outline" className="flex-1 h-11" onClick={() => setEditingId(null)}><X className="h-4 w-4 mr-1" /> Cancelar</Button>
+                  </div>
+                </div>
+              ) : (
+                <div className="bg-card rounded-2xl border border-border active:scale-[0.98] transition-transform" onClick={() => onSelectTask(task.id)}>
+                  <div className="flex items-center gap-4 p-4">
+                    <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center text-2xl shrink-0">{task.emoji}</div>
+                    <div className="flex-1 min-w-0">
+                      <p className="font-semibold text-base text-foreground truncate">{task.name}</p>
+                      <div className="flex items-center gap-3 mt-0.5">
+                        <span className="text-xs text-muted-foreground">{task.intervals.length} {task.intervals.length === 1 ? 'intervalo' : 'intervalos'}</span>
+                        {task.intervals.length > 0 && <span className="text-xs text-muted-foreground flex items-center gap-1"><Clock className="h-3 w-3" />{totalTime(task.intervals)}</span>}
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <Button variant="ghost" size="icon" className="h-9 w-9 text-muted-foreground" onClick={e => { e.stopPropagation(); startEdit(task); }}><Pencil className="h-4 w-4" /></Button>
+                      <Button variant="ghost" size="icon" className="h-9 w-9 text-muted-foreground hover:text-destructive" onClick={e => { e.stopPropagation(); deleteTask(task.id); }}><Trash2 className="h-4 w-4" /></Button>
+                      <ChevronRight className="h-5 w-5 text-muted-foreground/50 ml-1" />
+                    </div>
+                  </div>
+                </div>
+              )}
+            </motion.div>
+          ))}
+        </AnimatePresence>
+
+        {tasks.length === 0 && !showNew && (
+          <div className="text-center py-16 text-muted-foreground">
+            <div className="text-5xl mb-4">⏱️</div>
+            <p className="font-medium">Aún no tienes tareas</p>
+            <p className="text-sm mt-1">Crea una para empezar</p>
+          </div>
+        )}
+      </div>
+
+      <div className="fixed bottom-0 left-0 right-0 px-4 pb-8 pt-4 bg-gradient-to-t from-background via-background to-transparent">
+        <AnimatePresence>
+          {showNew ? (
+            <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 20 }} className="bg-card rounded-2xl border border-border p-4 space-y-3 shadow-xl">
+              <div className="flex items-center gap-2">
+                <EmojiPicker value={newEmoji} onChange={setNewEmoji} options={TASK_EMOJIS} />
+                <Input placeholder="Nombre de la tarea" value={newName} onChange={e => setNewName(e.target.value)} className="flex-1 h-11 text-base" autoFocus onKeyDown={e => e.key === 'Enter' && handleCreate()} />
+              </div>
+              <div className="flex gap-2">
+                <Button className="flex-1 h-11" onClick={handleCreate} disabled={!newName.trim()}><Plus className="h-4 w-4 mr-1" /> Crear</Button>
+                <Button variant="outline" className="flex-1 h-11" onClick={() => setShowNew(false)}>Cancelar</Button>
+              </div>
+            </motion.div>
+          ) : (
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
+              <Button className="w-full h-14 rounded-2xl text-base font-semibold shadow-lg shadow-primary/20 gap-2" onClick={() => setShowNew(true)}>
+                <Plus className="h-5 w-5" /> Nueva tarea
+              </Button>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </div>
+    </div>
+  );
+}
+📁 pages/TaskTimer.jsx
+import React, { useState, useCallback } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { Play, Pause, RotateCcw, ChevronLeft, Plus } from 'lucide-react';
+import { Button } from "@/components/ui/button";
+import { toast } from "sonner";
+import TimerDisplay from '../components/timer/TimerDisplay';
+import IntervalForm from '../components/timer/IntervalForm';
+import DraggableIntervalList, { getIntervalColor } from '../components/timer/DraggableIntervalList';
+import useTimer from '../components/timer/useTimer';
+import useAlarm from '../components/timer/useAlarm';
+import { useTasks } from '../lib/useTasks';
+
+export default function TaskTimer({ taskId, onBack }) {
+  const { tasks, addInterval, updateInterval, deleteInterval, reorderIntervals } = useTasks();
+  const task = tasks.find(t => t.id === taskId);
+  const intervals = task?.intervals || [];
+  const [showForm, setShowForm] = useState(false);
+  const [completedFlash, setCompletedFlash] = useState(false);
+  const { playAlarm } = useAlarm();
+
+  const handleIntervalComplete = useCallback((index) => {
+    playAlarm();
+    setCompletedFlash(true);
+    setTimeout(() => setCompletedFlash(false), 600);
+  }, [playAlarm]);
+
+  const handleAllComplete = useCallback(() => {
+    toast.success(`¡${task?.name} completado! 🎉`);
+  }, [task]);
+
+  const { currentIndex, secondsLeft, isRunning, hasStarted, progress, start, pause, reset } =
+    useTimer(intervals, handleIntervalComplete, handleAllComplete);
+
+  if (!task) return null;
+
+  const currentLabel = intervals[currentIndex]?.name || '';
+  const currentColor = intervals.length > 0 ? getIntervalColor(currentIndex) : undefined;
+
+  return (
+    <div className="min-h-screen bg-background flex flex-col">
+      <AnimatePresence>
+        {completedFlash && (
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 0.15 }} exit={{ opacity: 0 }} className="fixed inset-0 bg-accent z-50 pointer-events-none" />
+        )}
+      </AnimatePresence>
+
+      <div className="flex items-center gap-3 px-4 pt-12 pb-4">
+        <Button variant="ghost" size="icon" className="h-10 w-10 rounded-xl -ml-1" onClick={() => { reset(); onBack(); }}>
+          <ChevronLeft className="h-5 w-5" />
+        </Button>
+        <span className="text-2xl">{task.emoji}</span>
+        <h1 className="text-xl font-bold text-foreground">{task.name}</h1>
+      </div>
+
+      <div className="flex justify-center py-6">
+        <TimerDisplay secondsLeft={secondsLeft} progress={hasStarted ? progress : 0} label={hasStarted ? currentLabel : (intervals.length > 0 ? intervals[0].name : '')} isRunning={isRunning} intervalColor={currentColor} />
+      </div>
+
+      <div className="flex items-center justify-center gap-3 px-4 mb-6">
+        {!isRunning ? (
+          <Button onClick={start} disabled={intervals.length === 0} size="lg" className="rounded-full px-10 gap-2 text-base font-semibold h-14 shadow-lg shadow-primary/20">
+            <Play className="h-5 w-5" />{hasStarted ? 'Reanudar' : 'Iniciar'}
+          </Button>
+        ) : (
+          <Button onClick={pause} size="lg" variant="secondary" className="rounded-full px-10 gap-2 text-base font-semibold h-14">
+            <Pause className="h-5 w-5" />Pausar
+          </Button>
+        )}
+        {hasStarted && (
+          <Button onClick={reset} size="lg" variant="outline" className="rounded-full h-14 px-6">
+            <RotateCcw className="h-4 w-4" />
+          </Button>
+        )}
+      </div>
+
+      <div className="flex-1 px-4 overflow-y-auto pb-32">
+        <DraggableIntervalList intervals={intervals} currentIndex={currentIndex} hasStarted={hasStarted} onRemove={(id) => deleteInterval(taskId, id)} onEdit={(id, data) => updateInterval(taskId, id, data)} onReorder={(newList) => reorderIntervals(taskId, newList)} />
+      </div>
+
+      {!hasStarted && (
+        <div className="fixed bottom-0 left-0 right-0 px-4 pb-8 pt-4 bg-gradient-to-t from-background via-background to-transparent">
+          <AnimatePresence>
+            {showForm ? (
+              <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 16 }} className="bg-card rounded-2xl border border-border p-4 shadow-xl">
+                <IntervalForm onAdd={(i) => { addInterval(taskId, i); setShowForm(false); }} disabled={false} />
+                <Button variant="ghost" className="w-full mt-2 text-muted-foreground" onClick={() => setShowForm(false)}>Cancelar</Button>
+              </motion.div>
+            ) : (
+              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
+                <Button variant="outline" className="w-full h-14 rounded-2xl text-base font-semibold gap-2 border-dashed" onClick={() => setShowForm(true)}>
+                  <Plus className="h-5 w-5" />Añadir intervalo
+                </Button>
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
+      )}
+    </div>
+  );
+}
+📁 lib/useTasks.js
+import { useState, useCallback } from 'react';
+
+const TASK_EMOJIS = ['🏃', '🍳', '🏠', '📚', '💪', '🎯', '🧘', '🛒', '💻', '🎵'];
+
+const defaultTasks = [
+  { id: 1, name: 'Entrenamiento', emoji: '💪', intervals: [
+    { id: 101, name: 'Calentamiento', minutes: 5, seconds: 0 },
+    { id: 102, name: 'Cardio', minutes: 20, seconds: 0 },
+    { id: 103, name: 'Fuerza', minutes: 15, seconds: 0 },
+    { id: 104, name: 'Estiramiento', minutes: 5, seconds: 0 },
+  ]},
+  { id: 2, name: 'Cocina', emoji: '🍳', intervals: [
+    { id: 201, name: 'Sofreír cebolla', minutes: 3, seconds: 0 },
+    { id: 202, name: 'Hervir pasta', minutes: 10, seconds: 0 },
+    { id: 203, name: 'Reposar', minutes: 2, seconds: 0 },
+  ]}
+];
+
+export function useTasks() {
+  const [tasks, setTasks] = useState(() => {
+    try {
+      const saved = localStorage.getItem('chain-timer-tasks');
+      return saved ? JSON.parse(saved) : defaultTasks;
+    } catch { return defaultTasks; }
+  });
+
+  const save = (updated) => {
+    setTasks(updated);
+    localStorage.setItem('chain-timer-tasks', JSON.stringify(updated));
+  };
+
+  const createTask = useCallback((name, emoji) => {
+    const task = { id: Date.now(), name, emoji: emoji || '🎯', intervals: [] };
+    save([...tasks, task]);
+    return task.id;
+  }, [tasks]);
+
+  const updateTask = useCallback((id, data) => save(tasks.map(t => t.id === id ? { ...t, ...data } : t)), [tasks]);
+  const deleteTask = useCallback((id) => save(tasks.filter(t => t.id !== id)), [tasks]);
+
+  const addInterval = useCallback((taskId, interval) => {
+    save(tasks.map(t => t.id === taskId ? { ...t, intervals: [...t.intervals, { ...interval, id: Date.now() }] } : t));
+  }, [tasks]);
+
+  const updateInterval = useCallback((taskId, intervalId, data) => {
+    save(tasks.map(t => t.id === taskId ? { ...t, intervals: t.intervals.map(i => i.id === intervalId ? { ...i, ...data } : i) } : t));
+  }, [tasks]);
+
+  const deleteInterval = useCallback((taskId, intervalId) => {
+    save(tasks.map(t => t.id === taskId ? { ...t, intervals: t.intervals.filter(i => i.id !== intervalId) } : t));
+  }, [tasks]);
+
+  const reorderIntervals = useCallback((taskId, newIntervals) => {
+    save(tasks.map(t => t.id === taskId ? { ...t, intervals: newIntervals } : t));
+  }, [tasks]);
+
+  return { tasks, createTask, updateTask, deleteTask, addInterval, updateInterval, deleteInterval, reorderIntervals, TASK_EMOJIS };
+}
+📁 components/timer/useTimer.js
+import { useState, useRef, useCallback, useEffect } from 'react';
+
+export default function useTimer(intervals, onIntervalComplete, onAllComplete) {
+  const [currentIndex, setCurrentIndex] = useState(0);
+  const [secondsLeft, setSecondsLeft] = useState(0);
+  const [isRunning, setIsRunning] = useState(false);
+  const [hasStarted, setHasStarted] = useState(false);
+  const tickRef = useRef(null);
+  const stateRef = useRef({ currentIndex: 0, secondsLeft: 0 });
+
+  stateRef.current = { currentIndex, secondsLeft };
+
+  const clearTick = () => {
+    if (tickRef.current) { clearInterval(tickRef.current); tickRef.current = null; }
+  };
+
+  const startTicking = useCallback(() => {
+    clearTick();
+    tickRef.current = setInterval(() => {
+      const { currentIndex: ci, secondsLeft: sl } = stateRef.current;
+      if (sl <= 1) {
+        const nextIndex = ci + 1;
+        if (nextIndex < intervals.length) {
+          onIntervalComplete?.(ci);
+          const nextTotal = intervals[nextIndex].minutes * 60 + (intervals[nextIndex].seconds || 0);
+          setCurrentIndex(nextIndex);
+          setSecondsLeft(nextTotal);
+          stateRef.current = { currentIndex: nextIndex, secondsLeft: nextTotal };
+        } else {
+          clearTick();
+          onIntervalComplete?.(ci);
+          onAllComplete?.();
+          setSecondsLeft(0);
+          setIsRunning(false);
+          setHasStarted(false);
+          stateRef.current = { currentIndex: ci, secondsLeft: 0 };
+        }
+      } else {
+        const next = sl - 1;
+        setSecondsLeft(next);
+        stateRef.current.secondsLeft = next;
+      }
+    }, 1000);
+  }, [intervals, onIntervalComplete, onAllComplete]);
+
+  const start = useCallback(() => {
+    if (intervals.length === 0) return;
+    if (!hasStarted) {
+      const total = intervals[0].minutes * 60 + (intervals[0].seconds || 0);
+      setCurrentIndex(0); setSecondsLeft(total); setHasStarted(true); setIsRunning(true);
+      stateRef.current = { currentIndex: 0, secondsLeft: total };
+      setTimeout(() => startTicking(), 10);
+    } else {
+      setIsRunning(true);
+      startTicking();
+    }
+  }, [intervals, hasStarted, startTicking]);
+
+  const pause = useCallback(() => { clearTick(); setIsRunning(false); }, []);
+
+  const reset = useCallback(() => {
+    clearTick(); setIsRunning(false); setHasStarted(false); setCurrentIndex(0);
+    const total = intervals.length > 0 ? intervals[0].minutes * 60 + (intervals[0].seconds || 0) : 0;
+    setSecondsLeft(total);
+    stateRef.current = { currentIndex: 0, secondsLeft: total };
+  }, [intervals]);
+
+  useEffect(() => () => clearTick(), []);
+
+  useEffect(() => {
+    if (!hasStarted) {
+      setCurrentIndex(0);
+      const total = intervals.length > 0 ? intervals[0].minutes * 60 + (intervals[0].seconds || 0) : 0;
+      setSecondsLeft(total);
+      stateRef.current = { currentIndex: 0, secondsLeft: total };
+    }
+  }, [intervals, hasStarted]);
+
+  const totalSeconds = intervals[currentIndex] ? intervals[currentIndex].minutes * 60 + (intervals[currentIndex].seconds || 0) : 0;
+  const progress = totalSeconds > 0 ? (totalSeconds - secondsLeft) / totalSeconds : 0;
+
+  return { currentIndex, secondsLeft, isRunning, hasStarted, progress, start, pause, reset };
+}
+📁 components/timer/useAlarm.js
+import { useCallback, useRef } from 'react';
+
+export default function useAlarm() {
+  const audioCtxRef = useRef(null);
+
+  const playAlarm = useCallback(() => {
+    const AudioContext = window.AudioContext || window.webkitAudioContext;
+    if (!audioCtxRef.current) audioCtxRef.current = new AudioContext();
+    const ctx = audioCtxRef.current;
+
+    const playTone = (freq, startTime, duration) => {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = 'sine';
+      osc.frequency.value = freq;
+      gain.gain.setValueAtTime(0.3, startTime);
+      gain.gain.exponentialRampToValueAtTime(0.01, startTime + duration);
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start(startTime);
+      osc.stop(startTime + duration);
+    };
+
+    const now = ctx.currentTime;
+    playTone(880, now, 0.15);
+    playTone(1100, now + 0.18, 0.15);
+    playTone(880, now + 0.36, 0.15);
+  }, []);
+
+  return { playAlarm };
+}
+📁 components/timer/TimerDisplay.jsx
+import React from 'react';
+import { motion } from 'framer-motion';
+
+const SIZE = 260, STROKE = 8;
+const RADIUS = (SIZE - STROKE) / 2;
+const CIRCUMFERENCE = 2 * Math.PI * RADIUS;
+
+export default function TimerDisplay({ secondsLeft, progress, label, isRunning, intervalColor }) {
+  const mins = Math.floor(secondsLeft / 60);
+  const secs = secondsLeft % 60;
+  const dashOffset = CIRCUMFERENCE * (1 - progress);
+
+  return (
+    <div className="relative flex items-center justify-center">
+      <svg width={SIZE} height={SIZE} className="transform -rotate-90">
+        <circle cx={SIZE/2} cy={SIZE/2} r={RADIUS} fill="none" stroke="hsl(var(--muted))" strokeWidth={STROKE} />
+        <motion.circle cx={SIZE/2} cy={SIZE/2} r={RADIUS} fill="none" stroke={intervalColor || "hsl(var(--primary))"} strokeWidth={STROKE} strokeLinecap="round" strokeDasharray={CIRCUMFERENCE} animate={{ strokeDashoffset: dashOffset }} transition={{ duration: 0.4, ease: "easeOut" }} />
+      </svg>
+      <div className="absolute inset-0 flex flex-col items-center justify-center">
+        <motion.span key={secondsLeft} initial={{ scale: 1.05, opacity: 0.7 }} animate={{ scale: 1, opacity: 1 }} className="font-mono text-5xl font-bold tracking-tight text-foreground">
+          {String(mins).padStart(2, '0')}:{String(secs).padStart(2, '0')}
+        </motion.span>
+        {label && <span className="mt-2 text-sm font-medium text-muted-foreground max-w-[180px] text-center truncate">{label}</span>}
+        {isRunning && (
+          <motion.div className="mt-3 h-1.5 w-1.5 rounded-full bg-accent" animate={{ opacity: [1, 0.3, 1] }} transition={{ repeat: Infinity, duration: 1.2 }} />
+        )}
+      </div>
+    </div>
+  );
+}
+📁 components/timer/IntervalForm.jsx
+import React, { useState } from 'react';
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Plus } from "lucide-react";
+
+export default function IntervalForm({ onAdd, disabled }) {
+  const [name, setName] = useState('');
+  const [minutes, setMinutes] = useState('');
+  const [seconds, setSeconds] = useState('');
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    const m = Math.max(0, parseInt(minutes) || 0);
+    const s = Math.max(0, Math.min(59, parseInt(seconds) || 0));
+    if (m === 0 && s === 0) return;
+    onAdd({ name: name.trim() || 'Intervalo', minutes: m, seconds: s, id: Date.now() });
+    setName(''); setMinutes(''); setSeconds('');
+  };
+
+  return (
+    <form onSubmit={handleSubmit} className="space-y-2">
+      <Input placeholder="Nombre del intervalo" value={name} onChange={(e) => setName(e.target.value)} disabled={disabled} className="h-11 text-base bg-card" />
+      <div className="flex gap-2">
+        <div className="flex items-center gap-1 flex-1">
+          <Input type="number" min="0" max="999" placeholder="0" value={minutes} onChange={(e) => setMinutes(e.target.value)} disabled={disabled} className="h-11 text-center font-mono text-base bg-card" />
+          <span className="text-sm text-muted-foreground font-medium shrink-0">min</span>
+        </div>
+        <div className="flex items-center gap-1 flex-1">
+          <Input type="number" min="0" max="59" placeholder="0" value={seconds} onChange={(e) => setSeconds(e.target.value)} disabled={disabled} className="h-11 text-center font-mono text-base bg-card" />
+          <span className="text-sm text-muted-foreground font-medium shrink-0">seg</span>
+        </div>
+        <Button type="submit" disabled={disabled} className="h-11 px-4 shrink-0"><Plus className="h-4 w-4" /></Button>
+      </div>
+    </form>
+  );
+}
+📁 components/timer/IntervalEditRow.jsx
+import React, { useState } from 'react';
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import { Check, X } from 'lucide-react';
+
+export default function IntervalEditRow({ interval, onSave, onCancel }) {
+  const [name, setName] = useState(interval.name);
+  const [minutes, setMinutes] = useState(String(interval.minutes));
+  const [seconds, setSeconds] = useState(String(interval.seconds || 0));
+
+  const handleSave = () => {
+    const m = Math.max(0, parseInt(minutes) || 0);
+    const s = Math.max(0, Math.min(59, parseInt(seconds) || 0));
+    if (m === 0 && s === 0) return;
+    onSave({ name: name.trim() || interval.name, minutes: m, seconds: s });
+  };
+
+  return (
+    <div className="flex flex-col gap-2 px-3 py-3 bg-primary/5 rounded-xl border border-primary/20">
+      <Input value={name} onChange={e => setName(e.target.value)} placeholder="Nombre" className="h-10 text-sm bg-card" autoFocus />
+      <div className="flex gap-2 items-center">
+        <div className="flex gap-1 items-center flex-1">
+          <Input type="number" min="0" max="999" value={minutes} onChange={e => setMinutes(e.target.value)} className="h-10 w-20 text-center font-mono text-sm bg-card" placeholder="min" />
+          <span className="text-muted-foreground text-xs font-medium">m</span>
+          <Input type="number" min="0" max="59" value={seconds} onChange={e => setSeconds(e.target.value)} className="h-10 w-20 text-center font-mono text-sm bg-card" placeholder="seg" />
+          <span className="text-muted-foreground text-xs font-medium">s</span>
+        </div>
+        <Button size="icon" className="h-10 w-10 shrink-0" onClick={handleSave}><Check className="h-4 w-4" /></Button>
+        <Button size="icon" variant="outline" className="h-10 w-10 shrink-0" onClick={onCancel}><X className="h-4 w-4" /></Button>
+      </div>
+    </div>
+  );
+}
+📁 components/timer/DraggableIntervalList.jsx
+import React, { useState } from 'react';
+import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
+import { GripVertical, Pencil, Trash2, Clock } from 'lucide-react';
+import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
+import IntervalEditRow from './IntervalEditRow';
+
+export const COLORS = ['hsl(245, 58%, 51%)', 'hsl(35, 95%, 55%)', 'hsl(160, 60%, 45%)', 'hsl(340, 75%, 55%)', 'hsl(280, 65%, 60%)', 'hsl(200, 70%, 50%)'];
+export function getIntervalColor(index) { return COLORS[index % COLORS.length]; }
+
+function formatTime(minutes, seconds) {
+  const s = seconds || 0;
+  if (minutes > 0 && s > 0) return `${minutes}m ${s}s`;
+  if (minutes > 0) return `${minutes}m`;
+  return `${s}s`;
+}
+
+export default function DraggableIntervalList({ intervals, currentIndex, hasStarted, onRemove, onEdit, onReorder }) {
+  const [editingId, setEditingId] = useState(null);
+
+  const handleDragEnd = (result) => {
+    if (!result.destination) return;
+    const items = Array.from(intervals);
+    const [moved] = items.splice(result.source.index, 1);
+    items.splice(result.destination.index, 0, moved);
+    onReorder(items);
+  };
+
+  const totalTime = intervals.reduce((s, i) => s + i.minutes * 60 + (i.seconds || 0), 0);
+  const totalMin = Math.floor(totalTime / 60), totalSec = totalTime % 60;
+
+  return (
+    <div className="space-y-2">
+      <div className="flex items-center justify-between px-1">
+        <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Intervalos ({intervals.length})</span>
+        {intervals.length > 0 && (
+          <span className="text-xs font-mono text-muted-foreground flex items-center gap-1">
+            <Clock className="h-3 w-3" />
+            {totalMin > 0 ? `${totalMin}m` : ''}{totalSec > 0 ? ` ${totalSec}s` : totalMin === 0 ? '0s' : ''}
+          </span>
+        )}
+      </div>
+
+      <DragDropContext onDragEnd={handleDragEnd}>
+        <Droppable droppableId="intervals">
+          {(provided) => (
+            <div ref__={provided.innerRef} {...provided.droppableProps} className="space-y-1.5">
+              {intervals.map((interval, index) => {
+                const isActive = hasStarted && index === currentIndex;
+                const isDone = hasStarted && index < currentIndex;
+                const color = getIntervalColor(index);
+                return (
+                  <Draggable key={interval.id} draggableId={String(interval.id)} index={index} isDragDisabled={hasStarted}>
+                    {(drag, snapshot) => (
+                      <div ref__={drag.innerRef} {...drag.draggableProps} className={cn("rounded-xl border transition-all", snapshot.isDragging ? "shadow-lg border-primary/30 bg-card" : "bg-card/80 border-transparent", isActive && "border-primary/30 shadow-sm bg-card")}>
+                        {editingId === interval.id ? (
+                          <div className="p-1">
+                            <IntervalEditRow interval={interval} onSave={(data) => { onEdit(interval.id, data); setEditingId(null); }} onCancel={() => setEditingId(null)} />
+                          </div>
+                        ) : (
+                          <div className="flex items-center gap-2 px-2 py-2.5">
+                            {!hasStarted && <div {...drag.dragHandleProps} className="p-1 cursor-grab active:cursor-grabbing text-muted-foreground/40 hover:text-muted-foreground"><GripVertical className="h-4 w-4" /></div>}
+                            <div className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: color }} />
+                            <span className={cn("flex-1 text-sm font-medium truncate", isDone && "line-through text-muted-foreground")}>{interval.name}</span>
+                            <span className="font-mono text-xs text-muted-foreground tabular-nums shrink-0">{formatTime(interval.minutes, interval.seconds)}</span>
+                            {!hasStarted && (
+                              <div className="flex gap-0.5">
+                                <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-foreground" onClick={() => setEditingId(interval.id)}><Pencil className="h-3.5 w-3.5" /></Button>
+                                <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-destructive" onClick={() => onRemove(interval.id)}><Trash2 className="h-3.5 w-3.5" /></Button>
+                              </div>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </Draggable>
+                );
+              })}
+              {provided.placeholder}
+            </div>
+          )}
+        </Droppable>
+      </DragDropContext>
+
+      {intervals.length === 0 && (
+        <div className="text-center py-10 text-muted-foreground">
+          <Clock className="h-8 w-8 mx-auto mb-2 opacity-25" />
+          <p className="text-sm">Agrega intervalos para empezar</p>
+        </div>
+      )}
+    </div>
+  );
+}
+📁 components/tasks/EmojiPicker.jsx
+import React, { useState } from 'react';
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+
+export default function EmojiPicker({ value, onChange, options }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <button type="button" className="w-11 h-11 rounded-xl bg-primary/10 flex items-center justify-center text-2xl shrink-0 hover:bg-primary/20 transition-colors">
+          {value}
+        </button>
+      </PopoverTrigger>
+      <PopoverContent className="w-auto p-2">
+        <div className="grid grid-cols-5 gap-1">
+          {options.map(emoji => (
+            <button key={emoji} type="button" onClick={() => { onChange(emoji); setOpen(false); }} className="w-10 h-10 rounded-lg hover:bg-muted flex items-center justify-center text-xl transition-colors">
+              {emoji}
+            </button>
+          ))}
+        </div>
+      </PopoverContent>
+    </Popover>
+  );
+}
