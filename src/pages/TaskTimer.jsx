@@ -34,7 +34,7 @@ export default function TaskTimer({ taskId, onBack }) {
     toast.success(`¡${task?.name} completado! 🎉`);
   }, [task]);
 
-  const { currentIndex, secondsLeft, isRunning, hasStarted, progress, parallelTimers, start, startAllParallel, startSingle, pause, reset, skipIndex, skippedIndices } =
+  const { currentIndex, secondsLeft, isRunning, hasStarted, progress, parallelTimers, start, startAllParallel, startSingle, pause, reset, skipIndex, unskipIndex, skippedIndices } =
     useTimer(intervals, handleIntervalComplete, handleAllComplete, mode);
 
   // --- Persistent Android notification ---
@@ -130,9 +130,21 @@ export default function TaskTimer({ taskId, onBack }) {
             isRunning={anyParallelRunning}
             intervalColor={parallelColor}
           />
-        ) : (
-          <TimerDisplay secondsLeft={secondsLeft} progress={hasStarted ? progress : 0} label={hasStarted ? currentLabel : (intervals.length > 0 ? intervals[0].name : '')} isRunning={isRunning} intervalColor={currentColor} />
-        )}
+        ) : (() => {
+          // Find first non-skipped interval for idle display
+          const firstAvailable = intervals.findIndex((_, i) => !skippedIndices?.has(i));
+          const idleLabel = firstAvailable >= 0 ? intervals[firstAvailable].name : '';
+          const idleSeconds = firstAvailable >= 0 ? intervals[firstAvailable].minutes * 60 + (intervals[firstAvailable].seconds || 0) : 0;
+          return (
+            <TimerDisplay
+              secondsLeft={hasStarted ? secondsLeft : idleSeconds}
+              progress={hasStarted ? progress : 0}
+              label={hasStarted ? currentLabel : idleLabel}
+              isRunning={isRunning}
+              intervalColor={currentColor}
+            />
+          );
+        })()}
       </div>
 
       {/* Controls */}
@@ -188,6 +200,7 @@ export default function TaskTimer({ taskId, onBack }) {
           parallelTimers={parallelTimers}
           onStartSingle={startSingle}
           onSkip={skipIndex}
+          onUnskip={unskipIndex}
           onDuplicate={(id) => duplicateInterval(taskId, id)}
           skippedIndices={skippedIndices}
         />

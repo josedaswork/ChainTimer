@@ -17,6 +17,25 @@ export default function useAlarm() {
     return audioCtxRef.current;
   }, []);
 
+  const compressorRef = useRef(null);
+
+  const getCompressor = useCallback((ctx) => {
+    if (!compressorRef.current) {
+      const comp = ctx.createDynamicsCompressor();
+      comp.threshold.value = -6;
+      comp.knee.value = 3;
+      comp.ratio.value = 12;
+      comp.attack.value = 0;
+      comp.release.value = 0.1;
+      const masterGain = ctx.createGain();
+      masterGain.gain.value = 3.0;
+      comp.connect(masterGain);
+      masterGain.connect(ctx.destination);
+      compressorRef.current = comp;
+    }
+    return compressorRef.current;
+  }, []);
+
   const playTone = useCallback((ctx, freq, startTime, duration, type = 'sine', volume = 1.0) => {
     const osc = ctx.createOscillator();
     const gain = ctx.createGain();
@@ -25,10 +44,10 @@ export default function useAlarm() {
     gain.gain.setValueAtTime(volume, startTime);
     gain.gain.exponentialRampToValueAtTime(0.01, startTime + duration);
     osc.connect(gain);
-    gain.connect(ctx.destination);
+    gain.connect(getCompressor(ctx));
     osc.start(startTime);
     osc.stop(startTime + duration);
-  }, []);
+  }, [getCompressor]);
 
   const playAlarm = useCallback((soundId = 'beep') => {
     const ctx = getCtx();

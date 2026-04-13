@@ -268,9 +268,30 @@ export default function useTimer(intervals, onIntervalComplete, onAllComplete, m
     }
   }, [mode, hasStarted, intervals, onAllComplete]);
 
+  // ======================== UNSKIP ========================
+  const unskipIndex = useCallback((index) => {
+    if (mode === 'parallel') {
+      const timers = [...stateRef.current.parallelTimers];
+      if (timers[index]?.done) {
+        const iv = intervals[index];
+        const total = iv.minutes * 60 + (iv.seconds || 0);
+        timers[index] = { secondsLeft: total, total, done: false, running: false };
+        setParallelTimers(timers);
+        stateRef.current.parallelTimers = timers;
+      }
+      return;
+    }
+
+    // Serial mode
+    const newSkipped = new Set(skippedRef.current);
+    newSkipped.delete(index);
+    setSkippedIndices(newSkipped);
+    skippedRef.current = newSkipped;
+  }, [mode, intervals]);
+
   // ======================== COMPUTED ========================
   const totalSeconds = intervals[currentIndex] ? intervals[currentIndex].minutes * 60 + (intervals[currentIndex].seconds || 0) : 0;
   const progress = totalSeconds > 0 ? (totalSeconds - secondsLeft) / totalSeconds : 0;
 
-  return { currentIndex, secondsLeft, isRunning, hasStarted, progress, parallelTimers, start, startAllParallel, startSingle, pause, reset, skipIndex, skippedIndices };
+  return { currentIndex, secondsLeft, isRunning, hasStarted, progress, parallelTimers, start, startAllParallel, startSingle, pause, reset, skipIndex, unskipIndex, skippedIndices };
 }

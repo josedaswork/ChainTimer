@@ -1,0 +1,63 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#1a1d2e"/>
+      <stop offset="100%" stop-color="#0f1119"/>
+    </linearGradient>
+    <linearGradient id="ring" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#d4922a"/>
+      <stop offset="100%" stop-color="#e8a83c"/>
+    </linearGradient>
+    <linearGradient id="accent" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#3b82d6"/>
+      <stop offset="100%" stop-color="#2563a8"/>
+    </linearGradient>
+    <filter id="glow">
+      <feGaussianBlur stdDeviation="6" result="blur"/>
+      <feMerge>
+        <feMergeNode in="blur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+
+  <!-- Background rounded square -->
+  <rect width="512" height="512" rx="108" fill="url(#bg)"/>
+
+  <!-- Subtle inner border -->
+  <rect x="8" y="8" width="496" height="496" rx="100" fill="none" stroke="#2a2f45" stroke-width="2" opacity="0.5"/>
+
+  <!-- Timer ring (outer) -->
+  <circle cx="256" cy="268" r="148" fill="none" stroke="#1e2236" stroke-width="22"/>
+  <circle cx="256" cy="268" r="148" fill="none" stroke="url(#ring)" stroke-width="18" stroke-linecap="round"
+    stroke-dasharray="930" stroke-dashoffset="230" transform="rotate(-90 256 268)" filter="url(#glow)"/>
+
+  <!-- Progress dots on the ring -->
+  <circle cx="256" cy="120" r="7" fill="#e8a83c" opacity="0.9"/>
+  <circle cx="384" cy="195" r="5" fill="#e8a83c" opacity="0.5"/>
+  <circle cx="404" cy="268" r="5" fill="#e8a83c" opacity="0.3"/>
+
+  <!-- Inner ring subtle -->
+  <circle cx="256" cy="268" r="118" fill="none" stroke="#1e2236" stroke-width="1.5" opacity="0.6"/>
+
+  <!-- Timer text -->
+  <text x="256" y="258" text-anchor="middle" font-family="system-ui, -apple-system, sans-serif" font-weight="700" font-size="64" fill="#f0ece4" letter-spacing="-1">05:00</text>
+
+  <!-- Label under time -->
+  <text x="256" y="298" text-anchor="middle" font-family="system-ui, -apple-system, sans-serif" font-weight="500" font-size="18" fill="#6b7194" letter-spacing="3">INTERVAL</text>
+
+  <!-- Chain links at top -->
+  <g transform="translate(256, 72)" opacity="0.85">
+    <!-- Link 1 -->
+    <rect x="-30" y="-14" width="20" height="28" rx="8" fill="none" stroke="url(#accent)" stroke-width="3.5"/>
+    <!-- Link 2 (overlapping) -->
+    <rect x="-10" y="-10" width="20" height="28" rx="8" fill="none" stroke="#e8a83c" stroke-width="3.5"/>
+    <!-- Link 3 -->
+    <rect x="10" y="-14" width="20" height="28" rx="8" fill="none" stroke="url(#accent)" stroke-width="3.5"/>
+  </g>
+
+  <!-- Play triangle (bottom center) -->
+  <g transform="translate(256, 370)">
+    <polygon points="-14,-16 -14,16 16,0" fill="#e8a83c" opacity="0.8"/>
+  </g>
+</svg>

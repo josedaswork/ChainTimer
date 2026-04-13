@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
-import { GripVertical, Pencil, Trash2, Clock, Volume2, Smartphone, Play, CheckCircle2, Copy } from 'lucide-react';
+import { GripVertical, Pencil, Trash2, Clock, Volume2, Smartphone, Play, Copy } from 'lucide-react';
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import IntervalEditRow from './IntervalEditRow';
@@ -29,26 +29,34 @@ function formatCountdown(totalSecs) {
   return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
 }
 
-function SwipeableRow({ interval, index, drag, snapshot, isActive, isDone, isSkipped, canDrag, canEdit, color, isParallel, pTimer, hasStarted, onStartSingle, onRemove, onEdit, onDuplicate, onSkip, revealedId, setRevealedId }) {
+function SwipeableRow({ interval, index, drag, snapshot, isActive, isDone, isSkipped, canDrag, canEdit, color, isParallel, pTimer, hasStarted, onStartSingle, onRemove, onEdit, onDuplicate, onSkip, onUnskip, revealedId, setRevealedId }) {
   const controls = useAnimation();
+  const cardRef = React.useRef(null);
   const isRevealed = revealedId === interval.id;
+  const finished = isDone || isSkipped;
 
   useEffect(() => {
     if (!isRevealed) {
-      controls.start({ x: 0, transition: { type: 'spring', stiffness: 400, damping: 35 } });
+      controls.start({ x: 0, transition: { duration: 0.15, ease: 'easeOut' } });
     }
   }, [isRevealed, controls]);
 
   const handleDragEnd = async (e, info) => {
-    if (info.offset.x < -80 && info.velocity.x <= 0) {
-      await controls.start({ x: -300, opacity: 0, transition: { duration: 0.2 } });
-      onSkip(index);
-      controls.set({ x: 0, opacity: 1 });
-    } else if (info.offset.x > 60) {
+    const w = cardRef.current?.offsetWidth || 300;
+    const threshold = w * 0.1;
+
+    if (info.offset.x < -threshold) {
+      if (isSkipped) {
+        onUnskip(index);
+      } else {
+        onSkip(index);
+      }
+      controls.start({ x: 0, transition: { duration: 0.15, ease: 'easeOut' } });
+    } else if (info.offset.x > threshold) {
       setRevealedId(interval.id);
-      controls.start({ x: 140, transition: { type: 'spring', stiffness: 400, damping: 35 } });
+      controls.start({ x: 140, transition: { duration: 0.15, ease: 'easeOut' } });
     } else {
-      controls.start({ x: 0, transition: { type: 'spring', stiffness: 400, damping: 35 } });
+      controls.start({ x: 0, transition: { duration: 0.12, ease: 'easeOut' } });
       if (isRevealed) setRevealedId(null);
     }
   };
@@ -63,22 +71,19 @@ function SwipeableRow({ interval, index, drag, snapshot, isActive, isDone, isSki
       <div className="absolute inset-y-0 left-0 flex items-center gap-1.5 pl-2 z-0">
         <button
           onClick={() => { closeMenu(); onEdit(); }}
-          className="h-9 w-9 rounded-lg flex items-center justify-center text-white"
-          style={{ backgroundColor: 'hsl(210, 70%, 45%)' }}
+          className="h-9 w-9 rounded-lg flex items-center justify-center text-muted-foreground bg-secondary hover:bg-secondary/80"
         >
           <Pencil className="h-3.5 w-3.5" />
         </button>
         <button
           onClick={() => { closeMenu(); onDuplicate(); }}
-          className="h-9 w-9 rounded-lg flex items-center justify-center text-white"
-          style={{ backgroundColor: 'hsl(35, 90%, 50%)' }}
+          className="h-9 w-9 rounded-lg flex items-center justify-center text-muted-foreground bg-secondary hover:bg-secondary/80"
         >
           <Copy className="h-3.5 w-3.5" />
         </button>
         <button
           onClick={() => { closeMenu(); onRemove(); }}
-          className="h-9 w-9 rounded-lg flex items-center justify-center text-white"
-          style={{ backgroundColor: 'hsl(0, 65%, 50%)' }}
+          className="h-9 w-9 rounded-lg flex items-center justify-center text-destructive bg-secondary hover:bg-destructive/20"
         >
           <Trash2 className="h-3.5 w-3.5" />
         </button>
@@ -86,6 +91,7 @@ function SwipeableRow({ interval, index, drag, snapshot, isActive, isDone, isSki
 
       {/* Swipeable card on top */}
       <motion.div
+        ref={cardRef}
         animate={controls}
         drag="x"
         dragDirectionLock
@@ -93,13 +99,15 @@ function SwipeableRow({ interval, index, drag, snapshot, isActive, isDone, isSki
         dragElastic={0.35}
         onDragEnd={handleDragEnd}
         className={cn(
-          "relative z-10 rounded-xl border transition-colors",
-          snapshot?.isDragging ? "shadow-lg border-primary/30 bg-card" : "bg-card/80 border-transparent",
-          isActive && "border-primary/30 shadow-sm bg-card",
-          (isDone || isSkipped) && "opacity-40"
+          "relative z-10 rounded-xl glass-card",
+          snapshot?.isDragging && "shadow-lg",
+          isActive && "shadow-md shadow-primary/10"
         )}
+        style={{
+          borderColor: finished ? 'hsl(140, 55%, 45%)' : isActive ? 'hsla(35, 90%, 55%, 0.4)' : undefined,
+        }}
       >
-        <div className="flex items-center gap-2 px-2 py-2.5">
+        <div className={cn("flex items-center gap-2 px-2 py-2.5", finished && "opacity-50")}>
           {/* Drag handle */}
           {canDrag && (
             <div {...drag?.dragHandleProps} className="p-1 cursor-grab active:cursor-grabbing text-muted-foreground/40 hover:text-muted-foreground">
@@ -114,30 +122,28 @@ function SwipeableRow({ interval, index, drag, snapshot, isActive, isDone, isSki
             </Button>
           )}
 
-          {/* Done check */}
-          {(isDone || isSkipped) && <CheckCircle2 className="h-4 w-4 text-muted-foreground shrink-0" />}
-
-          {/* Running dot */}
-          {isActive && (
+          {/* Color dot */}
+          {isActive ? (
             <motion.div className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: color }} animate={{ scale: [1, 1.4, 1] }} transition={{ repeat: Infinity, duration: 1 }} />
-          )}
-          {!isActive && !isDone && !isSkipped && !(isParallel && hasStarted && pTimer && !pTimer.running && !pTimer.done) && (
-            <div className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: color }} />
+          ) : (
+            !finished && !(isParallel && hasStarted && pTimer && !pTimer.running && !pTimer.done) && (
+              <div className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: finished ? 'hsl(140, 50%, 45%)' : color }} />
+            )
           )}
 
-          <span className={cn("flex-1 text-sm font-medium truncate", (isDone || isSkipped) && "line-through text-muted-foreground")}>{interval.name}</span>
+          <span className={cn("flex-1 text-sm font-medium truncate", finished && "line-through text-muted-foreground/70")}>{interval.name}</span>
 
           {interval.sound && interval.sound !== 'beep' && <Volume2 className="h-3 w-3 text-muted-foreground/50 shrink-0" />}
           {interval.vibration && <Smartphone className="h-3 w-3 text-muted-foreground/50 shrink-0" />}
 
           {/* Countdown or static time */}
           {isParallel && pTimer ? (
-            <span className={cn("font-mono text-xs tabular-nums shrink-0 font-semibold", pTimer.done ? "text-muted-foreground" : pTimer.running ? "text-foreground" : "text-muted-foreground")}>
-              {pTimer.done ? '✓' : pTimer.running ? formatCountdown(pTimer.secondsLeft) : formatTime(interval.minutes, interval.seconds)}
+            <span className={cn("font-mono text-xs tabular-nums shrink-0 font-semibold", pTimer.done ? "text-green-500/70 line-through" : pTimer.running ? "text-foreground" : "text-muted-foreground")}>
+              {pTimer.done ? formatTime(interval.minutes, interval.seconds) : pTimer.running ? formatCountdown(pTimer.secondsLeft) : formatTime(interval.minutes, interval.seconds)}
             </span>
           ) : (
-            <span className={cn("font-mono text-xs tabular-nums shrink-0", isSkipped ? "text-muted-foreground line-through" : "text-muted-foreground")}>
-              {isSkipped ? '✓' : formatTime(interval.minutes, interval.seconds)}
+            <span className={cn("font-mono text-xs tabular-nums shrink-0", finished ? "text-green-500/70 line-through" : "text-muted-foreground")}>
+              {formatTime(interval.minutes, interval.seconds)}
             </span>
           )}
         </div>
@@ -146,7 +152,7 @@ function SwipeableRow({ interval, index, drag, snapshot, isActive, isDone, isSki
   );
 }
 
-export default function DraggableIntervalList({ intervals, currentIndex, hasStarted, onRemove, onEdit, onReorder, mode, parallelTimers, onStartSingle, onSkip, onDuplicate, skippedIndices }) {
+export default function DraggableIntervalList({ intervals, currentIndex, hasStarted, onRemove, onEdit, onReorder, mode, parallelTimers, onStartSingle, onSkip, onUnskip, onDuplicate, skippedIndices }) {
   const [editingId, setEditingId] = useState(null);
   const [revealedId, setRevealedId] = useState(null);
   const isParallel = mode === 'parallel';
@@ -215,6 +221,7 @@ export default function DraggableIntervalList({ intervals, currentIndex, hasStar
                             onEdit={() => setEditingId(interval.id)}
                             onDuplicate={() => onDuplicate?.(interval.id)}
                             onSkip={onSkip}
+                            onUnskip={onUnskip}
                             revealedId={revealedId}
                             setRevealedId={setRevealedId}
                           />
