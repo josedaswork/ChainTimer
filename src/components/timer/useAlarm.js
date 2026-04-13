@@ -17,7 +17,7 @@ export default function useAlarm() {
     return audioCtxRef.current;
   }, []);
 
-  const playTone = useCallback((ctx, freq, startTime, duration, type = 'sine', volume = 0.3) => {
+  const playTone = useCallback((ctx, freq, startTime, duration, type = 'sine', volume = 1.0) => {
     const osc = ctx.createOscillator();
     const gain = ctx.createGain();
     osc.type = type;
@@ -36,29 +36,43 @@ export default function useAlarm() {
 
     switch (soundId) {
       case 'bell':
-        playTone(ctx, 440, now, 0.6, 'sine', 0.25);
-        playTone(ctx, 880, now, 0.4, 'sine', 0.15);
+        for (let r = 0; r < 3; r++) {
+          const off = r * 0.7;
+          playTone(ctx, 440, now + off, 0.6, 'sine', 1.0);
+          playTone(ctx, 880, now + off, 0.4, 'sine', 0.8);
+        }
         break;
       case 'chime':
-        playTone(ctx, 523, now, 0.15, 'sine', 0.25);
-        playTone(ctx, 659, now + 0.15, 0.15, 'sine', 0.25);
-        playTone(ctx, 784, now + 0.3, 0.15, 'sine', 0.25);
-        playTone(ctx, 1047, now + 0.45, 0.3, 'sine', 0.2);
+        for (let r = 0; r < 3; r++) {
+          const off = r * 0.7;
+          playTone(ctx, 523, now + off, 0.15, 'sine', 1.0);
+          playTone(ctx, 659, now + off + 0.15, 0.15, 'sine', 1.0);
+          playTone(ctx, 784, now + off + 0.3, 0.15, 'sine', 1.0);
+          playTone(ctx, 1047, now + off + 0.45, 0.3, 'sine', 0.9);
+        }
         break;
       case 'buzzer':
-        playTone(ctx, 220, now, 0.2, 'square', 0.15);
-        playTone(ctx, 220, now + 0.25, 0.2, 'square', 0.15);
-        playTone(ctx, 220, now + 0.5, 0.3, 'square', 0.15);
+        for (let r = 0; r < 4; r++) {
+          const off = r * 0.55;
+          playTone(ctx, 220, now + off, 0.2, 'square', 0.9);
+          playTone(ctx, 220, now + off + 0.25, 0.2, 'square', 0.9);
+        }
         break;
       case 'soft':
-        playTone(ctx, 600, now, 0.4, 'sine', 0.12);
-        playTone(ctx, 800, now + 0.2, 0.5, 'sine', 0.08);
+        for (let r = 0; r < 3; r++) {
+          const off = r * 0.8;
+          playTone(ctx, 600, now + off, 0.4, 'sine', 0.8);
+          playTone(ctx, 800, now + off + 0.2, 0.5, 'sine', 0.7);
+        }
         break;
       case 'beep':
       default:
-        playTone(ctx, 880, now, 0.15, 'sine', 0.3);
-        playTone(ctx, 1100, now + 0.18, 0.15, 'sine', 0.3);
-        playTone(ctx, 880, now + 0.36, 0.15, 'sine', 0.3);
+        for (let r = 0; r < 3; r++) {
+          const off = r * 0.6;
+          playTone(ctx, 880, now + off, 0.15, 'sine', 1.0);
+          playTone(ctx, 1100, now + off + 0.18, 0.15, 'sine', 1.0);
+          playTone(ctx, 880, now + off + 0.36, 0.15, 'sine', 1.0);
+        }
         break;
     }
   }, [getCtx, playTone]);

@@ -50,9 +50,22 @@ export function useTasks() {
     save(tasks.map(t => t.id === taskId ? { ...t, intervals: t.intervals.filter(i => i.id !== intervalId) } : t));
   }, [tasks]);
 
+  const duplicateInterval = useCallback((taskId, intervalId) => {
+    save(tasks.map(t => {
+      if (t.id !== taskId) return t;
+      const idx = t.intervals.findIndex(i => i.id === intervalId);
+      if (idx === -1) return t;
+      const original = t.intervals[idx];
+      const copy = { ...original, id: Date.now(), name: `${original.name} (copia)` };
+      const newIntervals = [...t.intervals];
+      newIntervals.splice(idx + 1, 0, copy);
+      return { ...t, intervals: newIntervals };
+    }));
+  }, [tasks]);
+
   const reorderIntervals = useCallback((taskId, newIntervals) => {
     save(tasks.map(t => t.id === taskId ? { ...t, intervals: newIntervals } : t));
   }, [tasks]);
 
-  return { tasks, createTask, updateTask, deleteTask, addInterval, updateInterval, deleteInterval, reorderIntervals, TASK_EMOJIS };
+  return { tasks, createTask, updateTask, deleteTask, addInterval, updateInterval, deleteInterval, duplicateInterval, reorderIntervals, TASK_EMOJIS };
 }

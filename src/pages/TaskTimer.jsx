@@ -13,12 +13,13 @@ import { useTasks } from '../lib/useTasks';
 import useNotification from '../lib/useNotification';
 
 export default function TaskTimer({ taskId, onBack }) {
-  const { tasks, addInterval, updateInterval, deleteInterval, reorderIntervals } = useTasks();
+  const { tasks, addInterval, updateInterval, deleteInterval, duplicateInterval, reorderIntervals } = useTasks();
   const task = tasks.find(t => t.id === taskId);
   const intervals = task?.intervals || [];
   const mode = task?.type || 'serial';
   const isParallel = mode === 'parallel';
   const [completedFlash, setCompletedFlash] = useState(false);
+  const [showAddForm, setShowAddForm] = useState(false);
   const { playAlarm, vibrate } = useAlarm();
 
   const handleIntervalComplete = useCallback((index) => {
@@ -33,7 +34,7 @@ export default function TaskTimer({ taskId, onBack }) {
     toast.success(`¡${task?.name} completado! 🎉`);
   }, [task]);
 
-  const { currentIndex, secondsLeft, isRunning, hasStarted, progress, parallelTimers, start, startAllParallel, startSingle, pause, reset } =
+  const { currentIndex, secondsLeft, isRunning, hasStarted, progress, parallelTimers, start, startAllParallel, startSingle, pause, reset, skipIndex, skippedIndices } =
     useTimer(intervals, handleIntervalComplete, handleAllComplete, mode);
 
   // --- Persistent Android notification ---
@@ -175,7 +176,7 @@ export default function TaskTimer({ taskId, onBack }) {
       </div>
 
       {/* Interval list */}
-      <div className={cn("flex-1 px-4 overflow-y-auto", isParallel ? "pb-48" : "pb-32")}>
+      <div className={cn("flex-1 px-4 overflow-y-auto pb-24")}>
         <DraggableIntervalList
           intervals={intervals}
           currentIndex={currentIndex}
@@ -186,27 +187,45 @@ export default function TaskTimer({ taskId, onBack }) {
           mode={mode}
           parallelTimers={parallelTimers}
           onStartSingle={startSingle}
+          onSkip={skipIndex}
+          onDuplicate={(id) => duplicateInterval(taskId, id)}
+          skippedIndices={skippedIndices}
         />
       </div>
 
-      {/* Add interval — always visible in parallel mode, toggle in serial */}
-      {(isParallel || !hasStarted) && (
-        <div className="fixed bottom-0 left-0 right-0 px-4 pb-6 pt-3 bg-gradient-to-t from-background via-background to-transparent">
-          {isParallel ? (
-            /* Parallel: always-visible compact inline form */
-            <div className="bg-card rounded-2xl border border-border p-3 shadow-lg">
-              <IntervalForm onAdd={(i) => addInterval(taskId, i)} disabled={false} compact />
-            </div>
-          ) : (
-            /* Serial: toggle form */
-            <AnimatePresence>
-              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
-                <IntervalForm onAdd={(i) => addInterval(taskId, i)} disabled={false} />
-              </motion.div>
-            </AnimatePresence>
-          )}
-        </div>
-      )}
+      {/* Floating Add Interval button */}
+      <Button
+        onClick={() => setShowAddForm(true)}
+        className="fixed bottom-6 right-6 h-14 w-14 rounded-full shadow-lg shadow-primary/30 z-30"
+      >
+        <Plus className="h-6 w-6" />
+      </Button>
+
+      {/* Add Interval popup */}
+      <AnimatePresence>
+        {showAddForm && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/60 z-40 flex items-end justify-center"
+            onClick={() => setShowAddForm(false)}
+          >
+            <motion.div
+              initial={{ y: 300 }}
+              animate={{ y: 0 }}
+              exit={{ y: 300 }}
+              transition={{ type: 'spring', stiffness: 400, damping: 35 }}
+              className="bg-card rounded-t-2xl border-t border-border p-4 pb-8 w-full max-w-md"
+              onClick={e => e.stopPropagation()}
+            >
+              <div className="w-10 h-1 rounded-full bg-muted-foreground/30 mx-auto mb-4" />
+              <h3 className="text-sm font-semibold text-foreground mb-3">Nuevo intervalo</h3>
+              <IntervalForm onAdd={(i) => { addInterval(taskId, i); setShowAddForm(false); }} disabled={false} />
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
