@@ -3,7 +3,6 @@ import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
 import { GripVertical, Pencil, Trash2, Clock, Volume2, Smartphone, Play, Copy } from 'lucide-react';
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import IntervalEditRow from './IntervalEditRow';
 import { motion, useAnimation } from 'framer-motion';
 
 export const COLORS = [
@@ -152,8 +151,7 @@ function SwipeableRow({ interval, index, drag, snapshot, isActive, isDone, isSki
   );
 }
 
-export default function DraggableIntervalList({ intervals, currentIndex, hasStarted, onRemove, onEdit, onReorder, mode, parallelTimers, onStartSingle, onSkip, onUnskip, onDuplicate, skippedIndices }) {
-  const [editingId, setEditingId] = useState(null);
+export default function DraggableIntervalList({ intervals, currentIndex, hasStarted, onRemove, onEdit, onReorder, mode, parallelTimers, onStartSingle, onSkip, onUnskip, onDuplicate, skippedIndices, onEditPopup }) {
   const [revealedId, setRevealedId] = useState(null);
   const isParallel = mode === 'parallel';
 
@@ -197,11 +195,6 @@ export default function DraggableIntervalList({ intervals, currentIndex, hasStar
                   <Draggable key={interval.id} draggableId={String(interval.id)} index={index} isDragDisabled={!canDrag}>
                     {(drag, snapshot) => (
                       <div ref={drag.innerRef} {...drag.draggableProps}>
-                        {editingId === interval.id ? (
-                          <div className="p-1">
-                            <IntervalEditRow interval={interval} onSave={(data) => { onEdit(interval.id, data); setEditingId(null); }} onCancel={() => setEditingId(null)} />
-                          </div>
-                        ) : (
                           <SwipeableRow
                             interval={interval}
                             index={index}
@@ -218,14 +211,13 @@ export default function DraggableIntervalList({ intervals, currentIndex, hasStar
                             hasStarted={hasStarted}
                             onStartSingle={onStartSingle}
                             onRemove={() => onRemove(interval.id)}
-                            onEdit={() => setEditingId(interval.id)}
+                            onEdit={() => onEditPopup?.(interval)}
                             onDuplicate={() => onDuplicate?.(interval.id)}
                             onSkip={onSkip}
                             onUnskip={onUnskip}
                             revealedId={revealedId}
                             setRevealedId={setRevealedId}
                           />
-                        )}
                       </div>
                     )}
                   </Draggable>

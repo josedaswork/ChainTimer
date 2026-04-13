@@ -1,23 +1,30 @@
 import React, { useState } from 'react';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Plus, Volume2, Smartphone } from "lucide-react";
-import { ALARM_SOUNDS } from './useAlarm';
+import { Plus, Volume2, Smartphone, Check } from "lucide-react";
+import useAlarm, { ALARM_SOUNDS } from './useAlarm';
 
-export default function IntervalForm({ onAdd, disabled, compact = false }) {
-  const [name, setName] = useState('');
-  const [minutes, setMinutes] = useState('');
-  const [seconds, setSeconds] = useState('');
-  const [sound, setSound] = useState('beep');
-  const [vibration, setVibration] = useState(false);
+export default function IntervalForm({ onAdd, disabled, compact = false, initialValues = null, submitLabel = null }) {
+  const [name, setName] = useState(initialValues?.name || '');
+  const [minutes, setMinutes] = useState(initialValues ? String(initialValues.minutes) : '');
+  const [seconds, setSeconds] = useState(initialValues ? String(initialValues.seconds || 0) : '');
+  const [sound, setSound] = useState(initialValues?.sound || 'beep');
+  const [vibration, setVibration] = useState(initialValues?.vibration || false);
+  const { playAlarm } = useAlarm();
+
+  const handleSoundChange = (e) => {
+    const val = e.target.value;
+    setSound(val);
+    playAlarm(val);
+  };
 
   const handleSubmit = (e) => {
     e.preventDefault();
     const m = Math.max(0, parseInt(minutes) || 0);
     const s = Math.max(0, Math.min(59, parseInt(seconds) || 0));
     if (m === 0 && s === 0) return;
-    onAdd({ name: name.trim() || 'Intervalo', minutes: m, seconds: s, sound, vibration, id: Date.now() });
-    setName(''); setMinutes(''); setSeconds(''); setSound('beep'); setVibration(false);
+    onAdd({ name: name.trim() || 'Intervalo', minutes: m, seconds: s, sound, vibration, id: initialValues?.id || Date.now() });
+    if (!initialValues) { setName(''); setMinutes(''); setSeconds(''); setSound('beep'); setVibration(false); }
   };
 
   const [showOptions, setShowOptions] = useState(false);
@@ -37,7 +44,7 @@ export default function IntervalForm({ onAdd, disabled, compact = false }) {
           <div className="flex gap-2 items-center">
             <div className="flex items-center gap-1.5 flex-1">
               <Volume2 className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-              <select value={sound} onChange={e => setSound(e.target.value)} disabled={disabled} className="flex-1 h-8 rounded-md border border-input bg-transparent px-2 text-xs">
+              <select value={sound} onChange={handleSoundChange} disabled={disabled} className="flex-1 h-8 rounded-md border border-input bg-transparent px-2 text-xs">
                 {ALARM_SOUNDS.map(s => <option key={s.id} value={s.id}>{s.label}</option>)}
               </select>
             </div>
@@ -66,12 +73,12 @@ export default function IntervalForm({ onAdd, disabled, compact = false }) {
           <Input type="number" min="0" max="59" placeholder="0" value={seconds} onChange={(e) => setSeconds(e.target.value)} disabled={disabled} className="h-11 text-center font-mono text-base bg-card" />
           <span className="text-sm text-muted-foreground font-medium shrink-0">seg</span>
         </div>
-        <Button type="submit" disabled={disabled} className="h-11 px-4 shrink-0"><Plus className="h-4 w-4" /></Button>
+        <Button type="submit" disabled={disabled} className="h-11 px-4 shrink-0">{submitLabel ? <><Check className="h-4 w-4 mr-1" />{submitLabel}</> : <Plus className="h-4 w-4" />}</Button>
       </div>
       <div className="flex gap-2 items-center">
         <div className="flex items-center gap-1.5 flex-1">
           <Volume2 className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-          <select value={sound} onChange={e => setSound(e.target.value)} disabled={disabled} className="flex-1 h-9 rounded-md border border-input bg-card px-2 text-sm">
+          <select value={sound} onChange={handleSoundChange} disabled={disabled} className="flex-1 h-9 rounded-md border border-input bg-card px-2 text-sm">
             {ALARM_SOUNDS.map(s => <option key={s.id} value={s.id}>{s.label}</option>)}
           </select>
         </div>

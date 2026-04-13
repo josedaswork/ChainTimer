@@ -40,12 +40,6 @@
   <!-- Inner ring subtle -->
   <circle cx="256" cy="268" r="118" fill="none" stroke="#1e2236" stroke-width="1.5" opacity="0.6"/>
 
-  <!-- Timer text -->
-  <text x="256" y="258" text-anchor="middle" font-family="system-ui, -apple-system, sans-serif" font-weight="700" font-size="64" fill="#f0ece4" letter-spacing="-1">05:00</text>
-
-  <!-- Label under time -->
-  <text x="256" y="298" text-anchor="middle" font-family="system-ui, -apple-system, sans-serif" font-weight="500" font-size="18" fill="#6b7194" letter-spacing="3">INTERVAL</text>
-
   <!-- Chain links at top -->
   <g transform="translate(256, 72)" opacity="0.85">
     <!-- Link 1 -->
@@ -56,8 +50,8 @@
     <rect x="10" y="-14" width="20" height="28" rx="8" fill="none" stroke="url(#accent)" stroke-width="3.5"/>
   </g>
 
-  <!-- Play triangle (bottom center) -->
-  <g transform="translate(256, 370)">
-    <polygon points="-14,-16 -14,16 16,0" fill="#e8a83c" opacity="0.8"/>
+  <!-- Large play triangle (center) -->
+  <g transform="translate(256, 268)">
+    <polygon points="-36,-44 -36,44 44,0" fill="#e8a83c" opacity="0.9" filter="url(#glow)"/>
   </g>
 </svg>

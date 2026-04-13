@@ -1,5 +1,12 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
+
+// Mock @capacitor/haptics — Haptics.impact always rejects to trigger fallback
+vi.mock('@capacitor/haptics', () => ({
+  Haptics: { impact: vi.fn(() => Promise.reject(new Error('no native'))) },
+  ImpactStyle: { Heavy: 'HEAVY' },
+}));
+
 import useAlarm, { ALARM_SOUNDS } from '@/components/timer/useAlarm';
 
 // Mock Web Audio API
@@ -84,18 +91,18 @@ describe('useAlarm', () => {
     }).not.toThrow();
   });
 
-  it('vibrate calls navigator.vibrate when available', () => {
+  it('vibrate calls navigator.vibrate as fallback', async () => {
     navigator.vibrate = vi.fn();
     const { result } = renderHook(() => useAlarm());
-    act(() => result.current.vibrate());
+    await act(async () => result.current.vibrate());
     expect(navigator.vibrate).toHaveBeenCalledWith([200, 100, 200]);
   });
 
-  it('vibrate does not throw when navigator.vibrate is unavailable', () => {
+  it('vibrate does not throw when navigator.vibrate is unavailable', async () => {
     navigator.vibrate = undefined;
     const { result } = renderHook(() => useAlarm());
-    expect(() => {
-      act(() => result.current.vibrate());
+    await expect(async () => {
+      await act(async () => result.current.vibrate());
     }).not.toThrow();
   });
 });

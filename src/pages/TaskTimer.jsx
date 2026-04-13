@@ -12,7 +12,7 @@ import useAlarm from '../components/timer/useAlarm';
 import { useTasks } from '../lib/useTasks';
 import useNotification from '../lib/useNotification';
 
-export default function TaskTimer({ taskId, onBack }) {
+export default function TaskTimer({ taskId, onBack, onRunningChange }) {
   const { tasks, addInterval, updateInterval, deleteInterval, duplicateInterval, reorderIntervals } = useTasks();
   const task = tasks.find(t => t.id === taskId);
   const intervals = task?.intervals || [];
@@ -20,7 +20,8 @@ export default function TaskTimer({ taskId, onBack }) {
   const isParallel = mode === 'parallel';
   const [completedFlash, setCompletedFlash] = useState(false);
   const [showAddForm, setShowAddForm] = useState(false);
-  const { playAlarm, vibrate } = useAlarm();
+  const [editingInterval, setEditingInterval] = useState(null);
+  const { playAlarm, vibrate, playStartSound } = useAlarm();
 
   const handleIntervalComplete = useCallback((index) => {
     const interval = intervals[index];
@@ -36,6 +37,14 @@ export default function TaskTimer({ taskId, onBack }) {
 
   const { currentIndex, secondsLeft, isRunning, hasStarted, progress, parallelTimers, start, startAllParallel, startSingle, pause, reset, skipIndex, unskipIndex, skippedIndices } =
     useTimer(intervals, handleIntervalComplete, handleAllComplete, mode);
+
+  const handleStart = useCallback(() => { playStartSound(); start(); }, [playStartSound, start]);
+  const handleStartAll = useCallback(() => { playStartSound(); startAllParallel(); }, [playStartSound, startAllParallel]);
+
+  // Report running state to parent for confirmation dialog
+  useEffect(() => {
+    onRunningChange?.(hasStarted && isRunning);
+  }, [hasStarted, isRunning, onRunningChange]);
 
   // --- Persistent Android notification ---
   const { startNotification, updateNotification, stopNotification, addActionListener } = useNotification();
@@ -110,7 +119,7 @@ export default function TaskTimer({ taskId, onBack }) {
 
       {/* Header */}
       <div className="flex items-center gap-3 px-4 pt-12 pb-4">
-        <Button variant="ghost" size="icon" className="h-10 w-10 rounded-xl -ml-1" onClick={() => { reset(); onBack(); }}>
+        <Button variant="ghost" size="icon" className="h-10 w-10 rounded-xl -ml-1" onClick={() => { onBack(); }}>
           <ChevronLeft className="h-5 w-5" />
         </Button>
         <span className="text-2xl">{task.emoji}</span>
@@ -153,7 +162,7 @@ export default function TaskTimer({ taskId, onBack }) {
           <>
             {/* Parallel: "Start All" or "Pause All" */}
             {!anyParallelRunning ? (
-              <Button onClick={startAllParallel} disabled={intervals.length === 0} size="lg" className="rounded-full px-8 gap-2 text-base font-semibold h-12 shadow-lg shadow-primary/20">
+              <Button onClick={handleStartAll} disabled={intervals.length === 0} size="lg" className="rounded-full px-8 gap-2 text-base font-semibold h-12 shadow-lg shadow-primary/20">
                 <Play className="h-5 w-5" />{hasStarted ? 'Reanudar todos' : 'Iniciar todos'}
               </Button>
             ) : (
@@ -170,7 +179,7 @@ export default function TaskTimer({ taskId, onBack }) {
         ) : (
           <>
             {!isRunning ? (
-              <Button onClick={start} disabled={intervals.length === 0} size="lg" className="rounded-full px-10 gap-2 text-base font-semibold h-14 shadow-lg shadow-primary/20">
+              <Button onClick={handleStart} disabled={intervals.length === 0} size="lg" className="rounded-full px-10 gap-2 text-base font-semibold h-14 shadow-lg shadow-primary/20">
                 <Play className="h-5 w-5" />{hasStarted ? 'Reanudar' : 'Iniciar'}
               </Button>
             ) : (
@@ -203,6 +212,7 @@ export default function TaskTimer({ taskId, onBack }) {
           onUnskip={unskipIndex}
           onDuplicate={(id) => duplicateInterval(taskId, id)}
           skippedIndices={skippedIndices}
+          onEditPopup={(interval) => setEditingInterval(interval)}
         />
       </div>
 
@@ -235,6 +245,38 @@ export default function TaskTimer({ taskId, onBack }) {
               <div className="w-10 h-1 rounded-full bg-muted-foreground/30 mx-auto mb-4" />
               <h3 className="text-sm font-semibold text-foreground mb-3">Nuevo intervalo</h3>
               <IntervalForm onAdd={(i) => { addInterval(taskId, i); setShowAddForm(false); }} disabled={false} />
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Edit Interval popup */}
+      <AnimatePresence>
+        {editingInterval && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/60 z-40 flex items-end justify-center"
+            onClick={() => setEditingInterval(null)}
+          >
+            <motion.div
+              initial={{ y: 300 }}
+              animate={{ y: 0 }}
+              exit={{ y: 300 }}
+              transition={{ type: 'spring', stiffness: 400, damping: 35 }}
+              className="bg-card rounded-t-2xl border-t border-border p-4 pb-8 w-full max-w-md"
+              onClick={e => e.stopPropagation()}
+            >
+              <div className="w-10 h-1 rounded-full bg-muted-foreground/30 mx-auto mb-4" />
+              <h3 className="text-sm font-semibold text-foreground mb-3">Editar intervalo</h3>
+              <IntervalForm
+                key={editingInterval.id}
+                initialValues={editingInterval}
+                onAdd={(data) => { updateInterval(taskId, editingInterval.id, data); setEditingInterval(null); }}
+                disabled={false}
+                submitLabel="Guardar"
+              />
             </motion.div>
           </motion.div>
         )}

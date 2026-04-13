@@ -3,10 +3,11 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Plus, ChevronRight, Zap, Clock, Trash2, Pencil, X, Check, Layers, ArrowRight } from 'lucide-react';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { cn } from "@/lib/utils";
 import { useTasks } from '../lib/useTasks';
 import EmojiPicker from '../components/tasks/EmojiPicker';
 
-export default function TaskList({ onSelectTask }) {
+export default function TaskList({ onSelectTask, activeTaskId, timerRunning }) {
   const { tasks, createTask, updateTask, deleteTask, TASK_EMOJIS } = useTasks();
   const [showNew, setShowNew] = useState(false);
   const [newName, setNewName] = useState('');
@@ -75,7 +76,7 @@ export default function TaskList({ onSelectTask }) {
                   </div>
                 </div>
               ) : (
-                <div className="bg-card rounded-2xl border border-border active:scale-[0.98] transition-transform" onClick={() => onSelectTask(task.id)}>
+                <div className={cn("bg-card rounded-2xl border active:scale-[0.98] transition-transform", activeTaskId === task.id && timerRunning ? "border-primary shadow-md shadow-primary/20" : "border-border")} onClick={() => onSelectTask(task.id)}>
                   <div className="flex items-center gap-4 p-4">
                     <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center text-2xl shrink-0">{task.emoji}</div>
                     <div className="flex-1 min-w-0">

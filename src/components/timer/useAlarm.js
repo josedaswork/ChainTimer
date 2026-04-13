@@ -1,4 +1,5 @@
 import { useCallback, useRef } from 'react';
+import { Haptics, ImpactStyle } from '@capacitor/haptics';
 
 export const ALARM_SOUNDS = [
   { id: 'beep', label: '🔔 Beep' },
@@ -96,11 +97,25 @@ export default function useAlarm() {
     }
   }, [getCtx, playTone]);
 
-  const vibrate = useCallback((pattern = [200, 100, 200]) => {
-    if (navigator.vibrate) {
-      navigator.vibrate(pattern);
+  const vibrate = useCallback(async () => {
+    try {
+      await Haptics.impact({ style: ImpactStyle.Heavy });
+      await new Promise(r => setTimeout(r, 200));
+      await Haptics.impact({ style: ImpactStyle.Heavy });
+      await new Promise(r => setTimeout(r, 100));
+      await Haptics.impact({ style: ImpactStyle.Heavy });
+    } catch {
+      if (navigator.vibrate) navigator.vibrate([200, 100, 200]);
     }
   }, []);
 
-  return { playAlarm, vibrate, ALARM_SOUNDS };
+  const playStartSound = useCallback(() => {
+    const ctx = getCtx();
+    const now = ctx.currentTime;
+    playTone(ctx, 523, now, 0.1, 'sine', 0.7);
+    playTone(ctx, 659, now + 0.1, 0.1, 'sine', 0.7);
+    playTone(ctx, 784, now + 0.2, 0.15, 'sine', 0.8);
+  }, [getCtx, playTone]);
+
+  return { playAlarm, vibrate, playStartSound, ALARM_SOUNDS };
 }
