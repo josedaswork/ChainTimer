@@ -105,4 +105,26 @@ describe('useAlarm', () => {
       await act(async () => result.current.vibrate());
     }).not.toThrow();
   });
+
+  it('playStartSound does not throw', () => {
+    const { result } = renderHook(() => useAlarm());
+    expect(() => result.current.playStartSound()).not.toThrow();
+  });
+
+  it('returns playStartSound function', () => {
+    const { result } = renderHook(() => useAlarm());
+    expect(typeof result.current.playStartSound).toBe('function');
+  });
+
+  it('playAlarm accepts volumeScale option', () => {
+    const { result } = renderHook(() => useAlarm());
+    expect(() => result.current.playAlarm('beep', { volumeScale: 0.6 })).not.toThrow();
+  });
+
+  it('playAlarm with volumeScale works for all sound types', () => {
+    const { result } = renderHook(() => useAlarm());
+    ALARM_SOUNDS.forEach(s => {
+      expect(() => result.current.playAlarm(s.id, { volumeScale: 0.5 })).not.toThrow();
+    });
+  });
 });

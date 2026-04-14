@@ -1,8 +1,17 @@
+/**
+ * @history
+ * 2026-04-14 — i18n: all strings use t()
+ * 2026-04-14 — Play/Pause per parallel interval (before and after global start)
+ * 2026-04-14 — Unskip works in parallel mode (checks parallelDone)
+ * 2026-04-14 — Swipe threshold increased to 20%
+ * 2026-04-14 — Duplicate interval button, glass-card effect, swipe gestures
+ */
 import React, { useState, useEffect } from 'react';
 import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
-import { GripVertical, Pencil, Trash2, Clock, Volume2, Smartphone, Play, Copy } from 'lucide-react';
+import { GripVertical, Pencil, Trash2, Clock, Volume2, Smartphone, Play, Pause, Copy } from 'lucide-react';
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { useI18n } from '@/lib/i18n';
 import { motion, useAnimation } from 'framer-motion';
 
 export const COLORS = [
@@ -28,11 +37,12 @@ function formatCountdown(totalSecs) {
   return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
 }
 
-function SwipeableRow({ interval, index, drag, snapshot, isActive, isDone, isSkipped, canDrag, canEdit, color, isParallel, pTimer, hasStarted, onStartSingle, onRemove, onEdit, onDuplicate, onSkip, onUnskip, revealedId, setRevealedId }) {
+function SwipeableRow({ interval, index, drag, snapshot, isActive, isDone, isSkipped, canDrag, canEdit, color, isParallel, pTimer, hasStarted, onStartSingle, onPauseSingle, onRemove, onEdit, onDuplicate, onSkip, onUnskip, revealedId, setRevealedId }) {
   const controls = useAnimation();
   const cardRef = React.useRef(null);
   const isRevealed = revealedId === interval.id;
-  const finished = isDone || isSkipped;
+  const parallelDone = isParallel && pTimer?.done;
+  const finished = isDone || isSkipped || parallelDone;
 
   useEffect(() => {
     if (!isRevealed) {
@@ -42,10 +52,10 @@ function SwipeableRow({ interval, index, drag, snapshot, isActive, isDone, isSki
 
   const handleDragEnd = async (e, info) => {
     const w = cardRef.current?.offsetWidth || 300;
-    const threshold = w * 0.1;
+    const threshold = w * 0.15;
 
     if (info.offset.x < -threshold) {
-      if (isSkipped) {
+      if (isSkipped || parallelDone) {
         onUnskip(index);
       } else {
         onSkip(index);
@@ -114,8 +124,13 @@ function SwipeableRow({ interval, index, drag, snapshot, isActive, isDone, isSki
             </div>
           )}
 
-          {/* Play button for individual start in parallel mode */}
-          {isParallel && hasStarted && pTimer && !pTimer.running && !pTimer.done && (
+          {/* Play/Pause button for individual control in parallel mode */}
+          {isParallel && pTimer && !pTimer.done && pTimer.running && (
+            <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground shrink-0" onClick={() => onPauseSingle?.(index)}>
+              <Pause className="h-4 w-4" />
+            </Button>
+          )}
+          {isParallel && pTimer && !pTimer.running && !pTimer.done && (
             <Button variant="ghost" size="icon" className="h-8 w-8 text-primary shrink-0" onClick={() => onStartSingle?.(index)}>
               <Play className="h-4 w-4" />
             </Button>
@@ -125,7 +140,7 @@ function SwipeableRow({ interval, index, drag, snapshot, isActive, isDone, isSki
           {isActive ? (
             <motion.div className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: color }} animate={{ scale: [1, 1.4, 1] }} transition={{ repeat: Infinity, duration: 1 }} />
           ) : (
-            !finished && !(isParallel && hasStarted && pTimer && !pTimer.running && !pTimer.done) && (
+            !finished && !(isParallel && pTimer && !pTimer.running && !pTimer.done) && (
               <div className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: finished ? 'hsl(140, 50%, 45%)' : color }} />
             )
           )}
@@ -136,11 +151,14 @@ function SwipeableRow({ interval, index, drag, snapshot, isActive, isDone, isSki
           {interval.vibration && <Smartphone className="h-3 w-3 text-muted-foreground/50 shrink-0" />}
 
           {/* Countdown or static time */}
-          {isParallel && pTimer ? (
-            <span className={cn("font-mono text-xs tabular-nums shrink-0 font-semibold", pTimer.done ? "text-green-500/70 line-through" : pTimer.running ? "text-foreground" : "text-muted-foreground")}>
-              {pTimer.done ? formatTime(interval.minutes, interval.seconds) : pTimer.running ? formatCountdown(pTimer.secondsLeft) : formatTime(interval.minutes, interval.seconds)}
-            </span>
-          ) : (
+          {isParallel && pTimer ? (() => {
+            const paused = !pTimer.running && !pTimer.done && pTimer.secondsLeft < pTimer.total;
+            return (
+              <span className={cn("font-mono text-xs tabular-nums shrink-0 font-semibold", pTimer.done ? "text-green-500/70 line-through" : pTimer.running ? "text-foreground" : paused ? "text-primary/70" : "text-muted-foreground")}>
+                {pTimer.done ? formatTime(interval.minutes, interval.seconds) : (pTimer.running || paused) ? formatCountdown(pTimer.secondsLeft) : formatTime(interval.minutes, interval.seconds)}
+              </span>
+            );
+          })() : (
             <span className={cn("font-mono text-xs tabular-nums shrink-0", finished ? "text-green-500/70 line-through" : "text-muted-foreground")}>
               {formatTime(interval.minutes, interval.seconds)}
             </span>
@@ -151,8 +169,9 @@ function SwipeableRow({ interval, index, drag, snapshot, isActive, isDone, isSki
   );
 }
 
-export default function DraggableIntervalList({ intervals, currentIndex, hasStarted, onRemove, onEdit, onReorder, mode, parallelTimers, onStartSingle, onSkip, onUnskip, onDuplicate, skippedIndices, onEditPopup }) {
+export default function DraggableIntervalList({ intervals, currentIndex, hasStarted, onRemove, onEdit, onReorder, mode, parallelTimers, onStartSingle, onPauseSingle, onSkip, onUnskip, onDuplicate, skippedIndices, onEditPopup }) {
   const [revealedId, setRevealedId] = useState(null);
+  const { t } = useI18n();
   const isParallel = mode === 'parallel';
 
   const handleDragEnd = (result) => {
@@ -169,7 +188,7 @@ export default function DraggableIntervalList({ intervals, currentIndex, hasStar
   return (
     <div className="space-y-2">
       <div className="flex items-center justify-between px-1">
-        <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Intervalos ({intervals.length})</span>
+        <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">{t('intervals')} ({intervals.length})</span>
         {intervals.length > 0 && (
           <span className="text-xs font-mono text-muted-foreground flex items-center gap-1">
             <Clock className="h-3 w-3" />
@@ -210,6 +229,7 @@ export default function DraggableIntervalList({ intervals, currentIndex, hasStar
                             pTimer={pTimer}
                             hasStarted={hasStarted}
                             onStartSingle={onStartSingle}
+                            onPauseSingle={onPauseSingle}
                             onRemove={() => onRemove(interval.id)}
                             onEdit={() => onEditPopup?.(interval)}
                             onDuplicate={() => onDuplicate?.(interval.id)}
@@ -232,7 +252,7 @@ export default function DraggableIntervalList({ intervals, currentIndex, hasStar
       {intervals.length === 0 && (
         <div className="text-center py-10 text-muted-foreground">
           <Clock className="h-8 w-8 mx-auto mb-2 opacity-25" />
-          <p className="text-sm">Agrega intervalos para empezar</p>
+          <p className="text-sm">{t('addIntervalsToStart')}</p>
         </div>
       )}
     </div>

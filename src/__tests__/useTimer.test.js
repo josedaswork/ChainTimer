@@ -177,4 +177,34 @@ describe('useTimer — parallel mode', () => {
     expect(result.current.parallelTimers[0].done).toBe(false);
     expect(result.current.parallelTimers[0].secondsLeft).toBe(3);
   });
+
+  it('pauseSingle pauses a single parallel timer', () => {
+    const { result } = renderHook(() => useTimer(intervals, vi.fn(), vi.fn(), 'parallel'));
+    act(() => result.current.startAllParallel());
+    expect(result.current.parallelTimers[0].running).toBe(true);
+    act(() => result.current.pauseSingle(0));
+    expect(result.current.parallelTimers[0].running).toBe(false);
+    // Others remain running
+    expect(result.current.parallelTimers[1].running).toBe(true);
+    expect(result.current.parallelTimers[2].running).toBe(true);
+  });
+
+  it('pauseSingle on all running timers stops the tick', () => {
+    const { result } = renderHook(() => useTimer(intervals, vi.fn(), vi.fn(), 'parallel'));
+    act(() => result.current.startAllParallel());
+    act(() => result.current.pauseSingle(0));
+    act(() => result.current.pauseSingle(1));
+    act(() => result.current.pauseSingle(2));
+    expect(result.current.isRunning).toBe(false);
+  });
+
+  it('startSingle starts a single parallel timer', () => {
+    const { result } = renderHook(() => useTimer(intervals, vi.fn(), vi.fn(), 'parallel'));
+    // Don't start all — start one individually
+    act(() => result.current.startSingle(1));
+    expect(result.current.hasStarted).toBe(true);
+    expect(result.current.parallelTimers[1].running).toBe(true);
+    expect(result.current.parallelTimers[0].running).toBe(false);
+    expect(result.current.parallelTimers[2].running).toBe(false);
+  });
 });

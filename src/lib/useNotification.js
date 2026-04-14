@@ -1,3 +1,7 @@
+/**
+ * @history
+ * 2026-04-14 — Capacitor local notifications with web fallback
+ */
 import { useCallback, useRef, useEffect } from 'react';
 
 const NOTIF_ID = 77001;

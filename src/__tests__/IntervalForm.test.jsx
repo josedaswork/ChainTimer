@@ -3,17 +3,22 @@ import React from 'react';
 import { render, screen, fireEvent } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import IntervalForm from '@/components/timer/IntervalForm';
+import { I18nProvider } from '@/lib/i18n';
+
+function renderWithI18n(ui) {
+  return render(<I18nProvider>{ui}</I18nProvider>);
+}
 
 describe('IntervalForm', () => {
   it('renders name, minutes and seconds inputs', () => {
-    render(<IntervalForm onAdd={vi.fn()} disabled={false} />);
+    renderWithI18n(<IntervalForm onAdd={vi.fn()} disabled={false} />);
     expect(screen.getByPlaceholderText('Nombre del intervalo')).toBeInTheDocument();
     expect(screen.getAllByPlaceholderText('0').length).toBe(2);
   });
 
   it('does not call onAdd when minutes and seconds are both 0', async () => {
     const onAdd = vi.fn();
-    render(<IntervalForm onAdd={onAdd} disabled={false} />);
+    renderWithI18n(<IntervalForm onAdd={onAdd} disabled={false} />);
     const form = screen.getByPlaceholderText('Nombre del intervalo').closest('form');
     fireEvent.submit(form);
     expect(onAdd).not.toHaveBeenCalled();
@@ -22,7 +27,7 @@ describe('IntervalForm', () => {
   it('calls onAdd with correct data on valid submit', async () => {
     const onAdd = vi.fn();
     const user = userEvent.setup();
-    render(<IntervalForm onAdd={onAdd} disabled={false} />);
+    renderWithI18n(<IntervalForm onAdd={onAdd} disabled={false} />);
 
     await user.type(screen.getByPlaceholderText('Nombre del intervalo'), 'Test');
 
@@ -46,7 +51,7 @@ describe('IntervalForm', () => {
   it('uses "Intervalo" as default name when empty', async () => {
     const onAdd = vi.fn();
     const user = userEvent.setup();
-    render(<IntervalForm onAdd={onAdd} disabled={false} />);
+    renderWithI18n(<IntervalForm onAdd={onAdd} disabled={false} />);
 
     const numberInputs = screen.getAllByPlaceholderText('0');
     await user.type(numberInputs[0], '1');
@@ -60,7 +65,7 @@ describe('IntervalForm', () => {
   it('clamps seconds to max 59', async () => {
     const onAdd = vi.fn();
     const user = userEvent.setup();
-    render(<IntervalForm onAdd={onAdd} disabled={false} />);
+    renderWithI18n(<IntervalForm onAdd={onAdd} disabled={false} />);
 
     const numberInputs = screen.getAllByPlaceholderText('0');
     await user.type(numberInputs[1], '99');
@@ -77,7 +82,7 @@ describe('IntervalForm', () => {
   it('clears inputs after successful submit', async () => {
     const onAdd = vi.fn();
     const user = userEvent.setup();
-    render(<IntervalForm onAdd={onAdd} disabled={false} />);
+    renderWithI18n(<IntervalForm onAdd={onAdd} disabled={false} />);
 
     const nameInput = screen.getByPlaceholderText('Nombre del intervalo');
     const numberInputs = screen.getAllByPlaceholderText('0');
@@ -93,7 +98,7 @@ describe('IntervalForm', () => {
   });
 
   it('disables inputs when disabled prop is true', () => {
-    render(<IntervalForm onAdd={vi.fn()} disabled={true} />);
+    renderWithI18n(<IntervalForm onAdd={vi.fn()} disabled={true} />);
     expect(screen.getByPlaceholderText('Nombre del intervalo')).toBeDisabled();
   });
 });

@@ -1,3 +1,11 @@
+/**
+ * @history
+ * 2026-04-14 — pauseSingle / startSingle for individual parallel timer control
+ * 2026-04-14 — unskipIndex in parallel resets done timer to full time
+ * 2026-04-14 — skipIndex in parallel marks timer as done
+ * 2026-04-14 — parallel mode: startAllParallel, independent countdowns
+ * 2026-04-14 — serial mode: start, pause, reset, skip, unskip, progress
+ */
 import { useState, useRef, useCallback, useEffect } from 'react';
 
 export default function useTimer(intervals, onIntervalComplete, onAllComplete, mode = 'serial') {
@@ -124,6 +132,21 @@ export default function useTimer(intervals, onIntervalComplete, onAllComplete, m
     setIsRunning(true);
     ensureParallelTicking();
   }, [intervals, ensureParallelTicking]);
+
+  // Pause a SINGLE parallel timer by index
+  const pauseSingle = useCallback((index) => {
+    const timers = [...stateRef.current.parallelTimers];
+    if (timers[index]?.running && !timers[index]?.done) {
+      timers[index] = { ...timers[index], running: false };
+      setParallelTimers(timers);
+      stateRef.current.parallelTimers = timers;
+      // If no timers are running anymore, stop the tick
+      if (!timers.some(t => t.running && !t.done)) {
+        clearTick();
+        setIsRunning(false);
+      }
+    }
+  }, []);
 
   // ======================== CONTROLS ========================
   const start = useCallback(() => {
@@ -293,5 +316,5 @@ export default function useTimer(intervals, onIntervalComplete, onAllComplete, m
   const totalSeconds = intervals[currentIndex] ? intervals[currentIndex].minutes * 60 + (intervals[currentIndex].seconds || 0) : 0;
   const progress = totalSeconds > 0 ? (totalSeconds - secondsLeft) / totalSeconds : 0;
 
-  return { currentIndex, secondsLeft, isRunning, hasStarted, progress, parallelTimers, start, startAllParallel, startSingle, pause, reset, skipIndex, unskipIndex, skippedIndices };
+  return { currentIndex, secondsLeft, isRunning, hasStarted, progress, parallelTimers, start, startAllParallel, startSingle, pauseSingle, pause, reset, skipIndex, unskipIndex, skippedIndices };
 }

@@ -1,3 +1,7 @@
+/**
+ * @history
+ * 2026-04-14 — Inline edit row for intervals (name, time, sound, vibration)
+ */
 import React, { useState } from 'react';
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";

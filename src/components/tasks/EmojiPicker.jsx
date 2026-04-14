@@ -1,3 +1,7 @@
+/**
+ * @history
+ * 2026-04-14 — Popover emoji picker for task icons
+ */
 import React, { useState } from 'react';
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 

@@ -1,3 +1,10 @@
+/**
+ * @history
+ * 2026-04-14 — i18n: all labels, buttons, toasts, notifications use t()
+ * 2026-04-14 — Start sound on handleStart/handleStartAll
+ * 2026-04-14 — Back button no longer resets timer; reports isRunning to parent
+ * 2026-04-14 — Edit interval popup, serial/parallel mode controls
+ */
 import React, { useState, useCallback, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Play, Pause, RotateCcw, ChevronLeft, Plus, Layers, ArrowRight } from 'lucide-react';
@@ -10,10 +17,12 @@ import DraggableIntervalList, { getIntervalColor } from '../components/timer/Dra
 import useTimer from '../components/timer/useTimer';
 import useAlarm from '../components/timer/useAlarm';
 import { useTasks } from '../lib/useTasks';
+import { useI18n } from '../lib/i18n';
 import useNotification from '../lib/useNotification';
 
 export default function TaskTimer({ taskId, onBack, onRunningChange }) {
   const { tasks, addInterval, updateInterval, deleteInterval, duplicateInterval, reorderIntervals } = useTasks();
+  const { t } = useI18n();
   const task = tasks.find(t => t.id === taskId);
   const intervals = task?.intervals || [];
   const mode = task?.type || 'serial';
@@ -32,10 +41,10 @@ export default function TaskTimer({ taskId, onBack, onRunningChange }) {
   }, [playAlarm, vibrate, intervals]);
 
   const handleAllComplete = useCallback(() => {
-    toast.success(`¡${task?.name} completado! 🎉`);
+    toast.success(t('taskCompleted', { name: task?.name }));
   }, [task]);
 
-  const { currentIndex, secondsLeft, isRunning, hasStarted, progress, parallelTimers, start, startAllParallel, startSingle, pause, reset, skipIndex, unskipIndex, skippedIndices } =
+  const { currentIndex, secondsLeft, isRunning, hasStarted, progress, parallelTimers, start, startAllParallel, startSingle, pauseSingle, pause, reset, skipIndex, unskipIndex, skippedIndices } =
     useTimer(intervals, handleIntervalComplete, handleAllComplete, mode);
 
   const handleStart = useCallback(() => { playStartSound(); start(); }, [playStartSound, start]);
@@ -53,7 +62,7 @@ export default function TaskTimer({ taskId, onBack, onRunningChange }) {
 
   useEffect(() => {
     if (hasStarted) {
-      startNotification(`${task?.emoji} ${task?.name}`, 'Iniciando...');
+      startNotification(`${task?.emoji} ${task?.name}`, t('starting'));
     } else {
       stopNotification();
     }
@@ -125,7 +134,7 @@ export default function TaskTimer({ taskId, onBack, onRunningChange }) {
         <span className="text-2xl">{task.emoji}</span>
         <h1 className="text-xl font-bold text-foreground flex-1">{task.name}</h1>
         <span className="flex items-center gap-1 text-xs text-muted-foreground px-2 py-1 rounded-lg bg-muted">
-          {isParallel ? <><Layers className="h-3 w-3" />Paralelo</> : <><ArrowRight className="h-3 w-3" />Serie</>}
+          {isParallel ? <><Layers className="h-3 w-3" />{t('parallel')}</> : <><ArrowRight className="h-3 w-3" />{t('serial')}</>}
         </span>
       </div>
 
@@ -135,7 +144,7 @@ export default function TaskTimer({ taskId, onBack, onRunningChange }) {
           <TimerDisplay
             secondsLeft={hasStarted ? parallelSecondsLeft : (intervals.length > 0 ? Math.max(...intervals.map(i => i.minutes * 60 + (i.seconds || 0))) : 0)}
             progress={hasStarted ? parallelProgress : 0}
-            label={hasStarted ? (allParallelDone ? '¡Completado!' : (activeRunning.length > 0 ? `Próximo: ${parallelLabel}` : 'Esperando...')) : (intervals.length > 0 ? 'Listo para empezar' : '')}
+            label={hasStarted ? (allParallelDone ? t('completed') : (activeRunning.length > 0 ? t('nextUp', { name: parallelLabel }) : t('waiting'))) : (intervals.length > 0 ? t('readyToStart') : '')}
             isRunning={anyParallelRunning}
             intervalColor={parallelColor}
           />
@@ -163,11 +172,11 @@ export default function TaskTimer({ taskId, onBack, onRunningChange }) {
             {/* Parallel: "Start All" or "Pause All" */}
             {!anyParallelRunning ? (
               <Button onClick={handleStartAll} disabled={intervals.length === 0} size="lg" className="rounded-full px-8 gap-2 text-base font-semibold h-12 shadow-lg shadow-primary/20">
-                <Play className="h-5 w-5" />{hasStarted ? 'Reanudar todos' : 'Iniciar todos'}
+                <Play className="h-5 w-5" />{hasStarted ? t('resumeAll') : t('startAll')}
               </Button>
             ) : (
               <Button onClick={pause} size="lg" variant="secondary" className="rounded-full px-8 gap-2 text-base font-semibold h-12">
-                <Pause className="h-5 w-5" />Pausar todos
+                <Pause className="h-5 w-5" />{t('pauseAll')}
               </Button>
             )}
             {hasStarted && (
@@ -180,11 +189,11 @@ export default function TaskTimer({ taskId, onBack, onRunningChange }) {
           <>
             {!isRunning ? (
               <Button onClick={handleStart} disabled={intervals.length === 0} size="lg" className="rounded-full px-10 gap-2 text-base font-semibold h-14 shadow-lg shadow-primary/20">
-                <Play className="h-5 w-5" />{hasStarted ? 'Reanudar' : 'Iniciar'}
+                <Play className="h-5 w-5" />{hasStarted ? t('resume') : t('start')}
               </Button>
             ) : (
               <Button onClick={pause} size="lg" variant="secondary" className="rounded-full px-10 gap-2 text-base font-semibold h-14">
-                <Pause className="h-5 w-5" />Pausar
+                <Pause className="h-5 w-5" />{t('pause')}
               </Button>
             )}
             {hasStarted && (
@@ -208,6 +217,7 @@ export default function TaskTimer({ taskId, onBack, onRunningChange }) {
           mode={mode}
           parallelTimers={parallelTimers}
           onStartSingle={startSingle}
+          onPauseSingle={pauseSingle}
           onSkip={skipIndex}
           onUnskip={unskipIndex}
           onDuplicate={(id) => duplicateInterval(taskId, id)}
@@ -243,7 +253,7 @@ export default function TaskTimer({ taskId, onBack, onRunningChange }) {
               onClick={e => e.stopPropagation()}
             >
               <div className="w-10 h-1 rounded-full bg-muted-foreground/30 mx-auto mb-4" />
-              <h3 className="text-sm font-semibold text-foreground mb-3">Nuevo intervalo</h3>
+              <h3 className="text-sm font-semibold text-foreground mb-3">{t('newInterval')}</h3>
               <IntervalForm onAdd={(i) => { addInterval(taskId, i); setShowAddForm(false); }} disabled={false} />
             </motion.div>
           </motion.div>
@@ -269,13 +279,13 @@ export default function TaskTimer({ taskId, onBack, onRunningChange }) {
               onClick={e => e.stopPropagation()}
             >
               <div className="w-10 h-1 rounded-full bg-muted-foreground/30 mx-auto mb-4" />
-              <h3 className="text-sm font-semibold text-foreground mb-3">Editar intervalo</h3>
+              <h3 className="text-sm font-semibold text-foreground mb-3">{t('editInterval')}</h3>
               <IntervalForm
                 key={editingInterval.id}
                 initialValues={editingInterval}
                 onAdd={(data) => { updateInterval(taskId, editingInterval.id, data); setEditingInterval(null); }}
                 disabled={false}
-                submitLabel="Guardar"
+                submitLabel={t('save')}
               />
             </motion.div>
           </motion.div>

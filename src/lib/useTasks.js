@@ -1,3 +1,7 @@
+/**
+ * @history
+ * 2026-04-14 — localStorage persistence, CRUD tasks + intervals, emoji assignment
+ */
 import { useState, useCallback } from 'react';
 
 const TASK_EMOJIS = ['🏃', '🍳', '🏠', '📚', '💪', '🎯', '🧘', '🛒', '💻', '🎵'];

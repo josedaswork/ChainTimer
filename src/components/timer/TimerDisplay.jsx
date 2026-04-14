@@ -1,3 +1,7 @@
+/**
+ * @history
+ * 2026-04-14 — Circular progress ring with framer-motion animation
+ */
 import React from 'react';
 import { motion } from 'framer-motion';
 
