@@ -1,5 +1,6 @@
 /**
  * @history
+ * 2026-04-14 — Fix: swipe-left while menu open closes menu instead of skip/unskip
  * 2026-04-14 — i18n: all strings use t()
  * 2026-04-14 — Play/Pause per parallel interval (before and after global start)
  * 2026-04-14 — Unskip works in parallel mode (checks parallelDone)
@@ -55,7 +56,10 @@ function SwipeableRow({ interval, index, drag, snapshot, isActive, isDone, isSki
     const threshold = w * 0.15;
 
     if (info.offset.x < -threshold) {
-      if (isSkipped || parallelDone) {
+      if (isRevealed) {
+        // Menu is open — just close it, don't skip
+        setRevealedId(null);
+      } else if (isSkipped || parallelDone) {
         onUnskip(index);
       } else {
         onSkip(index);

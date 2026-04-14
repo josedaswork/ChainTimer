@@ -1,12 +1,14 @@
 /**
  * @history
+ * 2026-04-14 — Smooth page transitions (fade+slide) between list and timer views
  * 2026-04-14 — i18n: confirmation dialog strings use t()
  * 2026-04-14 — Timer persistence: display:none/contents keeps TaskTimer mounted
  * 2026-04-14 — Android back button via @capacitor/app
  * 2026-04-14 — Confirmation dialog when switching tasks with active timer
  */
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useLayoutEffect } from 'react';
 import { App as CapApp } from '@capacitor/app';
+import { motion, useAnimation } from 'framer-motion';
 import TaskList from './TaskList';
 import TaskTimer from './TaskTimer';
 import { useI18n } from '../lib/i18n';
@@ -53,27 +55,49 @@ export default function Home() {
     return () => { handler?.remove?.(); };
   }, [viewingTimer]);
 
+  // Page transition animations
+  const listControls = useAnimation();
+  const timerControls = useAnimation();
+
+  useLayoutEffect(() => {
+    if (viewingTimer) {
+      // Entering timer: fade + slide up
+      timerControls.set({ opacity: 0, y: 12 });
+      timerControls.start({ opacity: 1, y: 0, transition: { duration: 0.16, ease: [0.25, 0.1, 0.25, 1] } });
+    } else {
+      // Returning to list: quicker, subtle fade + slight slide down
+      listControls.set({ opacity: 0, y: -6 });
+      listControls.start({ opacity: 1, y: 0, transition: { duration: 0.07, ease: [0.25, 0.1, 0.25, 1] } });
+    }
+  }, [viewingTimer]);
+
   return (
     <>
       {/* TaskList — always mounted, hidden when viewing timer */}
-      <div style={{ display: viewingTimer ? 'none' : 'contents' }}>
+      <motion.div
+        animate={listControls}
+        style={{ display: viewingTimer ? 'none' : undefined }}
+      >
         <TaskList
           onSelectTask={handleSelectTask}
           activeTaskId={activeTaskId}
           timerRunning={timerRunning}
         />
-      </div>
+      </motion.div>
 
       {/* TaskTimer — mounted when activeTaskId set, hidden when viewing list */}
       {activeTaskId !== null && (
-        <div style={{ display: viewingTimer ? 'contents' : 'none' }}>
+        <motion.div
+          animate={timerControls}
+          style={{ display: viewingTimer ? undefined : 'none' }}
+        >
           <TaskTimer
             key={activeTaskId}
             taskId={activeTaskId}
             onBack={handleBack}
             onRunningChange={setTimerRunning}
           />
-        </div>
+        </motion.div>
       )}
 
       {/* Confirmation dialog */}
