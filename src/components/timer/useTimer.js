@@ -1,5 +1,6 @@
 /**
  * @history
+ * 2026-04-14 — 3-second countdown before serial start, series repeat (x1–x5)
  * 2026-04-14 — pauseSingle / startSingle for individual parallel timer control
  * 2026-04-14 — unskipIndex in parallel resets done timer to full time
  * 2026-04-14 — skipIndex in parallel marks timer as done
@@ -8,12 +9,14 @@
  */
 import { useState, useRef, useCallback, useEffect } from 'react';
 
-export default function useTimer(intervals, onIntervalComplete, onAllComplete, mode = 'serial') {
+export default function useTimer(intervals, onIntervalComplete, onAllComplete, mode = 'serial', seriesRepeat = 1) {
   // --- Serial state ---
   const [currentIndex, setCurrentIndex] = useState(0);
   const [secondsLeft, setSecondsLeft] = useState(0);
   const [skippedIndices, setSkippedIndices] = useState(new Set());
   const skippedRef = useRef(new Set());
+  const [countdownLeft, setCountdownLeft] = useState(null);
+  const [currentRepetition, setCurrentRepetition] = useState(1);
 
   // --- Parallel state: each timer has { secondsLeft, total, done, running } ---
   const [parallelTimers, setParallelTimers] = useState([]);
@@ -24,7 +27,7 @@ export default function useTimer(intervals, onIntervalComplete, onAllComplete, m
   const tickRef = useRef(null);
   const stateRef = useRef({ currentIndex: 0, secondsLeft: 0, parallelTimers: [] });
 
-  stateRef.current = { currentIndex, secondsLeft, parallelTimers };
+  stateRef.current = { currentIndex, secondsLeft, parallelTimers, countdownLeft, currentRepetition, seriesRepeat };
 
   const clearTick = () => {
     if (tickRef.current) { clearInterval(tickRef.current); tickRef.current = null; }
@@ -34,6 +37,14 @@ export default function useTimer(intervals, onIntervalComplete, onAllComplete, m
   const startTickingSerial = useCallback(() => {
     clearTick();
     tickRef.current = setInterval(() => {
+      // --- Handle 3-second countdown ---
+      if (stateRef.current.countdownLeft != null && stateRef.current.countdownLeft > 0) {
+        const newCd = stateRef.current.countdownLeft - 1;
+        stateRef.current.countdownLeft = newCd;
+        setCountdownLeft(newCd > 0 ? newCd : null);
+        return;
+      }
+
       const { currentIndex: ci, secondsLeft: sl } = stateRef.current;
       if (sl <= 1) {
         onIntervalComplete?.(ci);
@@ -47,12 +58,35 @@ export default function useTimer(intervals, onIntervalComplete, onAllComplete, m
           setSecondsLeft(nextTotal);
           stateRef.current = { ...stateRef.current, currentIndex: nextIndex, secondsLeft: nextTotal };
         } else {
-          clearTick();
-          onAllComplete?.();
-          setSecondsLeft(0);
-          setIsRunning(false);
-          setHasStarted(false);
-          stateRef.current = { ...stateRef.current, currentIndex: ci, secondsLeft: 0 };
+          // All intervals done — check for series repeat
+          const rep = stateRef.current.currentRepetition;
+          const maxRep = stateRef.current.seriesRepeat;
+          if (rep < maxRep) {
+            const newRep = rep + 1;
+            stateRef.current.currentRepetition = newRep;
+            setCurrentRepetition(newRep);
+            let startIdx = 0;
+            while (startIdx < intervals.length && skippedRef.current.has(startIdx)) startIdx++;
+            if (startIdx < intervals.length) {
+              const nextTotal = intervals[startIdx].minutes * 60 + (intervals[startIdx].seconds || 0);
+              setCurrentIndex(startIdx);
+              setSecondsLeft(nextTotal);
+              stateRef.current = { ...stateRef.current, currentIndex: startIdx, secondsLeft: nextTotal };
+            } else {
+              clearTick();
+              onAllComplete?.();
+              setSecondsLeft(0);
+              setIsRunning(false);
+              setHasStarted(false);
+            }
+          } else {
+            clearTick();
+            onAllComplete?.();
+            setSecondsLeft(0);
+            setIsRunning(false);
+            setHasStarted(false);
+            stateRef.current = { ...stateRef.current, currentIndex: ci, secondsLeft: 0 };
+          }
         }
       } else {
         const next = sl - 1;
@@ -175,7 +209,8 @@ export default function useTimer(intervals, onIntervalComplete, onAllComplete, m
         if (startIdx >= intervals.length) return;
         const total = intervals[startIdx].minutes * 60 + (intervals[startIdx].seconds || 0);
         setCurrentIndex(startIdx); setSecondsLeft(total); setHasStarted(true); setIsRunning(true);
-        stateRef.current = { ...stateRef.current, currentIndex: startIdx, secondsLeft: total };
+        setCountdownLeft(3); setCurrentRepetition(1);
+        stateRef.current = { ...stateRef.current, currentIndex: startIdx, secondsLeft: total, countdownLeft: 3, currentRepetition: 1 };
         setTimeout(() => startTickingSerial(), 10);
       } else {
         setIsRunning(true);
@@ -198,6 +233,7 @@ export default function useTimer(intervals, onIntervalComplete, onAllComplete, m
     clearTick(); setIsRunning(false); setHasStarted(false);
     setSkippedIndices(new Set());
     skippedRef.current = new Set();
+    setCountdownLeft(null); setCurrentRepetition(1);
 
     if (mode === 'parallel') {
       const timers = intervals.map(i => ({
@@ -316,5 +352,5 @@ export default function useTimer(intervals, onIntervalComplete, onAllComplete, m
   const totalSeconds = intervals[currentIndex] ? intervals[currentIndex].minutes * 60 + (intervals[currentIndex].seconds || 0) : 0;
   const progress = totalSeconds > 0 ? (totalSeconds - secondsLeft) / totalSeconds : 0;
 
-  return { currentIndex, secondsLeft, isRunning, hasStarted, progress, parallelTimers, start, startAllParallel, startSingle, pauseSingle, pause, reset, skipIndex, unskipIndex, skippedIndices };
+  return { currentIndex, secondsLeft, isRunning, hasStarted, progress, parallelTimers, start, startAllParallel, startSingle, pauseSingle, pause, reset, skipIndex, unskipIndex, skippedIndices, countdownLeft, currentRepetition };
 }

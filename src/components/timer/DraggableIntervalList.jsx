@@ -1,5 +1,6 @@
 /**
  * @history
+ * 2026-04-14 — Fix: Android swipe-menu buttons now work on first tap (touch-action + stopPropagation)
  * 2026-04-14 — Fix: swipe-left while menu open closes menu instead of skip/unskip
  * 2026-04-14 — i18n: all strings use t()
  * 2026-04-14 — Play/Pause per parallel interval (before and after global start)
@@ -81,20 +82,23 @@ function SwipeableRow({ interval, index, drag, snapshot, isActive, isDone, isSki
   return (
     <div className="relative overflow-hidden rounded-xl">
       {/* Action buttons behind the card (revealed on swipe right) */}
-      <div className="absolute inset-y-0 left-0 flex items-center gap-1.5 pl-2 z-0">
+      <div className="absolute inset-y-0 left-0 flex items-center gap-1.5 pl-2 z-0" style={{ touchAction: 'manipulation' }}>
         <button
+          onPointerDown={e => e.stopPropagation()}
           onClick={() => { closeMenu(); onEdit(); }}
           className="h-9 w-9 rounded-lg flex items-center justify-center text-muted-foreground bg-secondary hover:bg-secondary/80"
         >
           <Pencil className="h-3.5 w-3.5" />
         </button>
         <button
+          onPointerDown={e => e.stopPropagation()}
           onClick={() => { closeMenu(); onDuplicate(); }}
           className="h-9 w-9 rounded-lg flex items-center justify-center text-muted-foreground bg-secondary hover:bg-secondary/80"
         >
           <Copy className="h-3.5 w-3.5" />
         </button>
         <button
+          onPointerDown={e => e.stopPropagation()}
           onClick={() => { closeMenu(); onRemove(); }}
           className="h-9 w-9 rounded-lg flex items-center justify-center text-destructive bg-secondary hover:bg-destructive/20"
         >
@@ -117,6 +121,7 @@ function SwipeableRow({ interval, index, drag, snapshot, isActive, isDone, isSki
           isActive && "shadow-md shadow-primary/10"
         )}
         style={{
+          touchAction: 'none',
           borderColor: finished ? 'hsl(140, 55%, 45%)' : isActive ? 'hsla(35, 90%, 55%, 0.4)' : undefined,
         }}
       >

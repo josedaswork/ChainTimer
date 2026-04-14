@@ -1,5 +1,7 @@
 /**
  * @history
+ * 2026-04-14 — Blur input on long-press to prevent Android keyboard during PieMenu
+ * 2026-04-14 — Export usePieMenu hook for reuse
  * 2026-04-14 — i18n: all strings use t(), sound labels via soundLabels map
  * 2026-04-14 — PieMenu integration (long-press min/sec → radial presets)
  * 2026-04-14 — Sound preview at 60% volume (volumeScale: 0.6)
@@ -17,7 +19,7 @@ import { useI18n } from '@/lib/i18n';
 const MINUTE_PRESETS = [5, 10, 30, 60];
 const SECOND_PRESETS = [10, 15, 30, 45];
 
-function usePieMenu(options, onSelect) {
+export function usePieMenu(options, onSelect, direction = 'up') {
   const [visible, setVisible] = useState(false);
   const [highlightedIndex, setHighlightedIndex] = useState(-1);
   const wrapperRef = useRef(null);
@@ -90,12 +92,16 @@ function usePieMenu(options, onSelect) {
       if (wrapperRef.current) {
         const rect = wrapperRef.current.getBoundingClientRect();
         const cx = rect.left + rect.width / 2;
-        const cy = rect.top - 6;
-        const pos = getOptionPositions(r.current.options.length);
+        const cy = direction === 'down' ? rect.bottom + 6 : rect.top - 6;
+        const pos = getOptionPositions(r.current.options.length, direction);
         r.current.sp = pos.map(p => ({ x: cx + p.x, y: cy + p.y }));
       }
       r.current.vis = true;
       r.current.hi = -1;
+      // Blur input to prevent Android keyboard from popping up on long press
+      if (document.activeElement && document.activeElement.blur) {
+        document.activeElement.blur();
+      }
       setVisible(true);
       setHighlightedIndex(-1);
     }, 350);

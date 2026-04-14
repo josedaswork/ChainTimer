@@ -1,5 +1,7 @@
 /**
  * @history
+ * 2026-04-14 — Start sound plays after countdown, not before
+ * 2026-04-14 — Series repeat multiplier (x1–x5 PieMenu), 3-second countdown
  * 2026-04-14 — i18n: all labels, buttons, toasts, notifications use t()
  * 2026-04-14 — Start sound on handleStart/handleStartAll
  * 2026-04-14 — Back button no longer resets timer; reports isRunning to parent
@@ -12,7 +14,8 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import TimerDisplay from '../components/timer/TimerDisplay';
-import IntervalForm from '../components/timer/IntervalForm';
+import IntervalForm, { usePieMenu } from '../components/timer/IntervalForm';
+import PieMenu from '../components/timer/PieMenu';
 import DraggableIntervalList, { getIntervalColor } from '../components/timer/DraggableIntervalList';
 import useTimer from '../components/timer/useTimer';
 import useAlarm from '../components/timer/useAlarm';
@@ -30,6 +33,7 @@ export default function TaskTimer({ taskId, onBack, onRunningChange }) {
   const [completedFlash, setCompletedFlash] = useState(false);
   const [showAddForm, setShowAddForm] = useState(false);
   const [editingInterval, setEditingInterval] = useState(null);
+  const [seriesRepeat, setSeriesRepeat] = useState(1);
   const { playAlarm, vibrate, playStartSound } = useAlarm();
 
   const handleIntervalComplete = useCallback((index) => {
@@ -44,11 +48,24 @@ export default function TaskTimer({ taskId, onBack, onRunningChange }) {
     toast.success(t('taskCompleted', { name: task?.name }));
   }, [task]);
 
-  const { currentIndex, secondsLeft, isRunning, hasStarted, progress, parallelTimers, start, startAllParallel, startSingle, pauseSingle, pause, reset, skipIndex, unskipIndex, skippedIndices } =
-    useTimer(intervals, handleIntervalComplete, handleAllComplete, mode);
+  const { currentIndex, secondsLeft, isRunning, hasStarted, progress, parallelTimers, start, startAllParallel, startSingle, pauseSingle, pause, reset, skipIndex, unskipIndex, skippedIndices, countdownLeft, currentRepetition } =
+    useTimer(intervals, handleIntervalComplete, handleAllComplete, mode, seriesRepeat);
 
-  const handleStart = useCallback(() => { playStartSound(); start(); }, [playStartSound, start]);
+  const handleStart = useCallback(() => { start(); }, [start]);
   const handleStartAll = useCallback(() => { playStartSound(); startAllParallel(); }, [playStartSound, startAllParallel]);
+
+  // --- Series repeat PieMenu (serial mode only) ---
+  const REPEAT_OPTIONS = ['x1', 'x2', 'x3', 'x4', 'x5'];
+  const repeatPie = usePieMenu(REPEAT_OPTIONS, (val) => setSeriesRepeat(parseInt(val.replace('x', ''))), 'down');
+
+  // Play start sound when countdown finishes
+  const prevCountdownRef = useRef(null);
+  useEffect(() => {
+    if (prevCountdownRef.current != null && prevCountdownRef.current > 0 && countdownLeft == null) {
+      playStartSound();
+    }
+    prevCountdownRef.current = countdownLeft;
+  }, [countdownLeft, playStartSound]);
 
   // Report running state to parent for confirmation dialog
   useEffect(() => {
@@ -153,14 +170,40 @@ export default function TaskTimer({ taskId, onBack, onRunningChange }) {
           const firstAvailable = intervals.findIndex((_, i) => !skippedIndices?.has(i));
           const idleLabel = firstAvailable >= 0 ? intervals[firstAvailable].name : '';
           const idleSeconds = firstAvailable >= 0 ? intervals[firstAvailable].minutes * 60 + (intervals[firstAvailable].seconds || 0) : 0;
+          const isCountingDown = countdownLeft != null && countdownLeft > 0;
+          const displayLabel = isCountingDown ? t('getReady')
+            : hasStarted ? (seriesRepeat > 1 ? `${currentLabel} \u2014 ${t('seriesRound', { current: currentRepetition, total: seriesRepeat })}` : currentLabel)
+            : idleLabel;
           return (
             <TimerDisplay
               secondsLeft={hasStarted ? secondsLeft : idleSeconds}
-              progress={hasStarted ? progress : 0}
-              label={hasStarted ? currentLabel : idleLabel}
-              isRunning={isRunning}
-              intervalColor={currentColor}
-            />
+              progress={isCountingDown ? (3 - countdownLeft) / 3 : (hasStarted ? progress : 0)}
+              label={displayLabel}
+              isRunning={isRunning && !isCountingDown}
+              intervalColor={isCountingDown ? undefined : currentColor}
+              countdownValue={isCountingDown ? countdownLeft : undefined}
+              dimTime={repeatPie.visible}
+            >
+              {!isParallel && !hasStarted && (
+                <div
+                  ref={repeatPie.wrapperRef}
+                  onPointerDown={repeatPie.onPointerDown}
+                  onContextMenu={e => e.preventDefault()}
+                  className={`relative mt-2 ${repeatPie.visible ? 'z-20' : ''}`}
+                  style={{ touchAction: 'none' }}
+                >
+                  <button className={cn("px-3 py-1 rounded-full text-xs font-bold transition-colors", seriesRepeat > 1 ? "bg-primary/15 text-primary" : "bg-muted text-muted-foreground")}>
+                    x{seriesRepeat}
+                  </button>
+                  <PieMenu options={REPEAT_OPTIONS} highlightedIndex={repeatPie.highlightedIndex} visible={repeatPie.visible} direction="down" />
+                </div>
+              )}
+              {!isParallel && hasStarted && seriesRepeat > 1 && !isCountingDown && (
+                <span className="mt-1 text-xs font-semibold text-primary/70">
+                  {currentRepetition}/{seriesRepeat}
+                </span>
+              )}
+            </TimerDisplay>
           );
         })()}
       </div>

@@ -19,7 +19,7 @@ describe('getOptionPositions', () => {
   });
 
   it('positions are within radius bounds', () => {
-    const RADIUS = 58;
+    const RADIUS = 52;
     const positions = getOptionPositions(5);
     positions.forEach(p => {
       const dist = Math.sqrt(p.x * p.x + p.y * p.y);

@@ -1,5 +1,6 @@
 /**
  * @history
+ * 2026-04-14 — Add getReady, seriesRound keys for countdown and repeat
  * 2026-04-14 — Removed flag emojis from LANGUAGES labels
  * 2026-04-14 — Created: i18n system with 5 languages (es/en/fr/ca/pt)
  * 2026-04-14 — I18nProvider + useI18n hook, t() with {param} interpolation
@@ -43,6 +44,8 @@ const translations = {
     pause: 'Pausar',
     newInterval: 'Nuevo intervalo',
     editInterval: 'Editar intervalo',
+    getReady: '¡Prepárate!',
+    seriesRound: 'Ronda {current}/{total}',
 
     // Home
     taskInProgress: 'Tarea en curso',
@@ -103,6 +106,8 @@ const translations = {
     pause: 'Pause',
     newInterval: 'New interval',
     editInterval: 'Edit interval',
+    getReady: 'Get ready!',
+    seriesRound: 'Round {current}/{total}',
     taskInProgress: 'Task in progress',
     switchTaskConfirm: 'You have an active timer. Do you want to stop it and start a new one?',
     yesSwitch: 'Yes, switch',
@@ -153,6 +158,8 @@ const translations = {
     pause: 'Pause',
     newInterval: 'Nouvel intervalle',
     editInterval: 'Modifier l\'intervalle',
+    getReady: 'Préparez-vous !',
+    seriesRound: 'Tour {current}/{total}',
     taskInProgress: 'Tâche en cours',
     switchTaskConfirm: 'Vous avez un minuteur actif. Voulez-vous l\'arrêter et en démarrer un nouveau ?',
     yesSwitch: 'Oui, changer',
@@ -203,6 +210,8 @@ const translations = {
     pause: 'Pausa',
     newInterval: 'Nou interval',
     editInterval: 'Editar interval',
+    getReady: 'Prepara\'t!',
+    seriesRound: 'Ronda {current}/{total}',
     taskInProgress: 'Tasca en curs',
     switchTaskConfirm: 'Tens una tasca amb el temporitzador actiu. Vols abandonar-la i començar-ne una de nova?',
     yesSwitch: 'Sí, canviar',
@@ -253,6 +262,8 @@ const translations = {
     pause: 'Pausar',
     newInterval: 'Novo intervalo',
     editInterval: 'Editar intervalo',
+    getReady: 'Prepare-se!',
+    seriesRound: 'Rodada {current}/{total}',
     taskInProgress: 'Tarefa em andamento',
     switchTaskConfirm: 'Você tem um temporizador ativo. Deseja parar e iniciar um novo?',
     yesSwitch: 'Sim, trocar',
