@@ -1,5 +1,6 @@
 /**
  * @history
+ * 2026-04-15 — Fix: PieMenu preventDefault on pointerDown to block Android text selection on long-press
  * 2026-04-14 — Blur input on long-press to prevent Android keyboard during PieMenu
  * 2026-04-14 — Export usePieMenu hook for reuse
  * 2026-04-14 — i18n: all strings use t(), sound labels via soundLabels map
@@ -65,6 +66,9 @@ export function usePieMenu(options, onSelect, direction = 'up') {
       if (r.current.timer) { clearTimeout(r.current.timer); r.current.timer = null; }
       if (r.current.vis && r.current.hi >= 0) {
         r.current.onSelect(String(r.current.options[r.current.hi]));
+      } else if (!r.current.vis && r.current.target) {
+        // Short tap — manually focus the input since we called preventDefault
+        r.current.target.focus();
       }
       r.current.vis = false;
       r.current.hi = -1;
@@ -81,8 +85,10 @@ export function usePieMenu(options, onSelect, direction = 'up') {
   }, []);
 
   const onPointerDown = useCallback((e) => {
+    e.preventDefault(); // Prevent Android text selection / keyboard on long-press
     r.current.sx = e.clientX;
     r.current.sy = e.clientY;
+    r.current.target = e.target;
     window.addEventListener('pointermove', handlersRef.current.move);
     window.addEventListener('pointerup', handlersRef.current.up);
     window.addEventListener('pointercancel', handlersRef.current.up);
