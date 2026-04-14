@@ -128,4 +128,47 @@ describe('useTasks', () => {
     expect(saved.length).toBe(3);
     expect(saved[2].name).toBe('Persist Test');
   });
+
+  it('deleteInterval removes the correct interval by id (not last)', () => {
+    const { result } = renderHook(() => useTasks());
+    const taskId = result.current.tasks[0].id;
+    // Task "Entrenamiento" has 4 intervals: Calentamiento(101), Cardio(102), Fuerza(103), Estiramiento(104)
+    const targetId = result.current.tasks[0].intervals[1].id; // Cardio (id=102)
+    const targetName = result.current.tasks[0].intervals[1].name;
+
+    act(() => {
+      result.current.deleteInterval(taskId, targetId);
+    });
+
+    const task = result.current.tasks.find(t => t.id === taskId);
+    expect(task.intervals.length).toBe(3);
+    // The deleted interval should be gone
+    expect(task.intervals.find(i => i.id === targetId)).toBeUndefined();
+    expect(task.intervals.find(i => i.name === targetName)).toBeUndefined();
+    // The remaining intervals should be in correct order
+    expect(task.intervals[0].name).toBe('Calentamiento');
+    expect(task.intervals[1].name).toBe('Fuerza');
+    expect(task.intervals[2].name).toBe('Estiramiento');
+  });
+
+  it('deleteInterval after duplicate uses latest state', () => {
+    const { result } = renderHook(() => useTasks());
+    const taskId = result.current.tasks[0].id;
+    const intervalId = result.current.tasks[0].intervals[0].id; // Calentamiento
+
+    // Duplicate first, then delete the original — both should use fresh state
+    act(() => {
+      result.current.duplicateInterval(taskId, intervalId);
+    });
+    expect(result.current.tasks[0].intervals.length).toBe(5);
+
+    act(() => {
+      result.current.deleteInterval(taskId, intervalId);
+    });
+    const task = result.current.tasks.find(t => t.id === taskId);
+    expect(task.intervals.length).toBe(4);
+    expect(task.intervals.find(i => i.id === intervalId)).toBeUndefined();
+    // The copy should remain
+    expect(task.intervals[0].name).toContain('(copia)');
+  });
 });

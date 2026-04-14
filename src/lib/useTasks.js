@@ -1,5 +1,6 @@
 /**
  * @history
+ * 2026-04-14 — Fix: all mutations use functional setTasks(prev=>) to avoid stale closures
  * 2026-04-14 — localStorage persistence, CRUD tasks + intervals, emoji assignment
  */
 import { useState, useCallback } from 'react';
@@ -28,34 +29,39 @@ export function useTasks() {
     } catch { return defaultTasks; }
   });
 
-  const save = (updated) => {
-    setTasks(updated);
+  const persist = (updated) => {
     localStorage.setItem('chain-timer-tasks', JSON.stringify(updated));
+    return updated;
   };
 
   const createTask = useCallback((name, emoji, type) => {
     const task = { id: Date.now(), name, emoji: emoji || '🎯', type: type || 'serial', intervals: [] };
-    save([...tasks, task]);
+    setTasks(prev => persist([...prev, task]));
     return task.id;
-  }, [tasks]);
+  }, []);
 
-  const updateTask = useCallback((id, data) => save(tasks.map(t => t.id === id ? { ...t, ...data } : t)), [tasks]);
-  const deleteTask = useCallback((id) => save(tasks.filter(t => t.id !== id)), [tasks]);
+  const updateTask = useCallback((id, data) => {
+    setTasks(prev => persist(prev.map(t => t.id === id ? { ...t, ...data } : t)));
+  }, []);
+
+  const deleteTask = useCallback((id) => {
+    setTasks(prev => persist(prev.filter(t => t.id !== id)));
+  }, []);
 
   const addInterval = useCallback((taskId, interval) => {
-    save(tasks.map(t => t.id === taskId ? { ...t, intervals: [...t.intervals, { ...interval, id: Date.now() }] } : t));
-  }, [tasks]);
+    setTasks(prev => persist(prev.map(t => t.id === taskId ? { ...t, intervals: [...t.intervals, { ...interval, id: Date.now() }] } : t)));
+  }, []);
 
   const updateInterval = useCallback((taskId, intervalId, data) => {
-    save(tasks.map(t => t.id === taskId ? { ...t, intervals: t.intervals.map(i => i.id === intervalId ? { ...i, ...data } : i) } : t));
-  }, [tasks]);
+    setTasks(prev => persist(prev.map(t => t.id === taskId ? { ...t, intervals: t.intervals.map(i => i.id === intervalId ? { ...i, ...data } : i) } : t)));
+  }, []);
 
   const deleteInterval = useCallback((taskId, intervalId) => {
-    save(tasks.map(t => t.id === taskId ? { ...t, intervals: t.intervals.filter(i => i.id !== intervalId) } : t));
-  }, [tasks]);
+    setTasks(prev => persist(prev.map(t => t.id === taskId ? { ...t, intervals: t.intervals.filter(i => i.id !== intervalId) } : t)));
+  }, []);
 
   const duplicateInterval = useCallback((taskId, intervalId) => {
-    save(tasks.map(t => {
+    setTasks(prev => persist(prev.map(t => {
       if (t.id !== taskId) return t;
       const idx = t.intervals.findIndex(i => i.id === intervalId);
       if (idx === -1) return t;
@@ -64,12 +70,12 @@ export function useTasks() {
       const newIntervals = [...t.intervals];
       newIntervals.splice(idx + 1, 0, copy);
       return { ...t, intervals: newIntervals };
-    }));
-  }, [tasks]);
+    })));
+  }, []);
 
   const reorderIntervals = useCallback((taskId, newIntervals) => {
-    save(tasks.map(t => t.id === taskId ? { ...t, intervals: newIntervals } : t));
-  }, [tasks]);
+    setTasks(prev => persist(prev.map(t => t.id === taskId ? { ...t, intervals: newIntervals } : t)));
+  }, []);
 
   return { tasks, createTask, updateTask, deleteTask, addInterval, updateInterval, deleteInterval, duplicateInterval, reorderIntervals, TASK_EMOJIS };
 }
