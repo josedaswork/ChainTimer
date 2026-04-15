@@ -1,5 +1,6 @@
 /**
  * @history
+ * 2026-04-15 — Increase circle size to 32px and min radius to 46px for better touch targets
  * 2026-04-15 — Export ANCHOR_OFFSET_UP/DOWN constants shared with hit-detection
  * 2026-04-15 — Dynamic radius based on item count to prevent overlap, fix vertical offset
  * 2026-04-15 — Smaller circles (26px), tighter radius (40px), closer to trigger
@@ -12,7 +13,7 @@
 import React from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 
-const CIRCLE_SIZE = 26;
+const CIRCLE_SIZE = 32;
 const MIN_GAP = 4;         // minimum gap between circles
 const ARC_SPAN = 130;      // degrees of arc
 
@@ -22,11 +23,11 @@ export const ANCHOR_OFFSET_UP = -16;   // marginBottom (negative = into parent)
 export const ANCHOR_OFFSET_DOWN = 4;   // marginTop
 
 function getRadius(count) {
-  if (count <= 1) return 38;
+  if (count <= 1) return 46;
   const angleStep = ARC_SPAN / (count - 1);
   const minSpacing = (CIRCLE_SIZE + MIN_GAP) / 2;
   const needed = minSpacing / Math.sin((angleStep / 2) * Math.PI / 180);
-  return Math.max(38, Math.ceil(needed));
+  return Math.max(46, Math.ceil(needed));
 }
 
 export function getOptionPositions(count, direction = 'up') {

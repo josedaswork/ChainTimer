@@ -1,3 +1,6 @@
+/** @history
+ * 2025-04-15 — Disable text selection globally except on editable fields (inputs, textareas, contenteditable)
+ */
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -35,9 +38,17 @@
 @layer base {
   * {
     @apply border-border;
+    -webkit-user-select: none;
+    user-select: none;
   }
   body {
     @apply bg-background text-foreground;
+  }
+  input,
+  textarea,
+  [contenteditable="true"] {
+    -webkit-user-select: text;
+    user-select: text;
   }
 }
 

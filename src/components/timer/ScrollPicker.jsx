@@ -1,10 +1,11 @@
 /**
  * @history
+ * 2026-04-15 — Fix: PieMenu sync (rerender on external value), snap target uses raw index to fix boundary/aggressive scroll
  * 2026-04-15 — Smooth animated snap (lerp) instead of instant teleport
  * 2026-04-15 — Wrap-around (circular), smooth continuous rendering, locked prop
  * 2026-04-15 — Created: vertical drag-scroll number picker with momentum/deceleration
  */
-import React, { useRef, useCallback, useEffect, useState } from 'react';
+import React, { useRef, useCallback, useEffect, useLayoutEffect, useState } from 'react';
 import { cn } from '@/lib/utils';
 
 const ITEM_H = 36;       // height of each number slot
@@ -24,27 +25,33 @@ export default function ScrollPicker({ value, onChange, min = 0, max = 59, disab
   // Convert display index → offset (continuous, not clamped)
   const valToOffset = useCallback((v) => -(v - min) * ITEM_H, [min]);
 
-  // Initialize offset from value (only on external value change, not during drag)
-  useEffect(() => {
-    if (!r.current.dragging && r.current.raf == null) {
-      r.current.y = valToOffset(value ?? min);
-    }
-  }, [value, min, valToOffset]);
-
   const [, forceRender] = useState(0);
   const rerender = useCallback(() => forceRender(c => c + 1), []);
 
+  // Sync offset from external value changes (PieMenu, parent state)
+  useLayoutEffect(() => {
+    if (!r.current.dragging) {
+      if (r.current.raf != null) {
+        cancelAnimationFrame(r.current.raf);
+        r.current.raf = null;
+      }
+      r.current.y = valToOffset(value ?? min);
+      rerender();
+    }
+  }, [value, min, valToOffset, rerender]);
+
   const snapAnimate = useCallback(() => {
-    let idx = Math.round(-r.current.y / ITEM_H);
-    idx = wrap(idx);
-    const target = -idx * ITEM_H;
+    // Use raw (unwrapped) index for target so the lerp stays near current y
+    const rawIdx = Math.round(-r.current.y / ITEM_H);
+    const target = -rawIdx * ITEM_H;
     const diff = target - r.current.y;
     if (Math.abs(diff) < 0.5) {
-      // Close enough — finalize
-      r.current.y = target;
+      // Normalize y into first cycle so it doesn't drift unboundedly
+      const wrappedIdx = wrap(rawIdx);
+      r.current.y = -wrappedIdx * ITEM_H;
       r.current.raf = null;
       rerender();
-      onChange(idx + min);
+      onChange(wrappedIdx + min);
       return;
     }
     r.current.y += diff * SNAP_SPEED;

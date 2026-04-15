@@ -35,7 +35,7 @@ describe('getOptionPositions', () => {
   });
 
   it('circles do not overlap for 5 options', () => {
-    const CIRCLE_SIZE = 26;
+    const CIRCLE_SIZE = 32;
     const positions = getOptionPositions(5);
     for (let i = 0; i < positions.length; i++) {
       for (let j = i + 1; j < positions.length; j++) {
