@@ -1,5 +1,6 @@
 /**
  * @history
+ * 2026-04-15 — Peek-bounce hint also works on web (mouse click), touch unchanged
  * 2026-04-15 — Fix: swipe-menu buttons always behind card (z-0) so they hide when swiping back
  * 2026-04-15 — Fix: swipe-menu buttons use onPointerUp instead of onClick for reliable Android first-tap
  * 2026-04-14 — Fix: swipe-menu buttons z-index raised above card when revealed (Android first-tap fix)
@@ -48,6 +49,7 @@ function SwipeableRow({ interval, index, drag, snapshot, isActive, isDone, isSki
   const isRevealed = revealedId === interval.id;
   const parallelDone = isParallel && pTimer?.done;
   const finished = isDone || isSkipped || parallelDone;
+  const tapStartRef = React.useRef(null);
 
   useEffect(() => {
     if (!isRevealed) {
@@ -55,9 +57,41 @@ function SwipeableRow({ interval, index, drag, snapshot, isActive, isDone, isSki
     }
   }, [isRevealed, controls]);
 
+  const handleDragStart = () => {
+    tapStartRef.current = Date.now();
+  };
+
+  // Web click peek: pointerDown/Up on card for mouse clicks that don't trigger drag events
+  const peekHint = async () => {
+    if (isRevealed) return;
+    await controls.start({ x: 28, transition: { duration: 0.12, ease: 'easeOut' } });
+    controls.start({ x: 0, transition: { duration: 0.25, type: 'spring', stiffness: 400, damping: 20 } });
+  };
+
+  const handleCardPointerDown = (e) => {
+    // Only for mouse (touch triggers drag system instead)
+    if (e.pointerType !== 'mouse') return;
+    tapStartRef.current = Date.now();
+  };
+
+  const handleCardPointerUp = (e) => {
+    if (e.pointerType !== 'mouse') return;
+    const tapDuration = Date.now() - (tapStartRef.current || 0);
+    if (tapDuration < 200) peekHint();
+  };
+
   const handleDragEnd = async (e, info) => {
     const w = cardRef.current?.offsetWidth || 300;
     const threshold = w * 0.15;
+    const tapDuration = Date.now() - (tapStartRef.current || 0);
+    const movedVeryLittle = Math.abs(info.offset.x) < 6 && Math.abs(info.offset.y) < 6;
+
+    // Quick tap with no real drag → subtle peek hint
+    if (tapDuration < 200 && movedVeryLittle && !isRevealed) {
+      await controls.start({ x: 28, transition: { duration: 0.12, ease: 'easeOut' } });
+      controls.start({ x: 0, transition: { duration: 0.25, type: 'spring', stiffness: 400, damping: 20 } });
+      return;
+    }
 
     if (info.offset.x < -threshold) {
       if (isRevealed) {
@@ -123,7 +157,10 @@ function SwipeableRow({ interval, index, drag, snapshot, isActive, isDone, isSki
         dragDirectionLock
         dragConstraints={{ left: -150, right: 160 }}
         dragElastic={0.35}
+        onDragStart={handleDragStart}
         onDragEnd={handleDragEnd}
+        onPointerDown={handleCardPointerDown}
+        onPointerUp={handleCardPointerUp}
         className={cn(
           "relative z-10 rounded-xl glass-card",
           snapshot?.isDragging && "shadow-lg",
