@@ -1,5 +1,6 @@
 /**
  * @history
+ * 2026-04-15 — Remove single-iteration loops, remove ALARM_SOUNDS from hook return
  * 2026-04-15 — Reduce alarm repetitions by 2 (3→1, 4→2)
  * 2026-04-14 — volumeScale param in playAlarm for preview at 60%
  * 2026-04-14 — playStartSound (3-note ascending chime on timer start)
@@ -74,20 +75,14 @@ export default function useAlarm() {
 
     switch (soundId) {
       case 'bell':
-        for (let r = 0; r < 1; r++) {
-          const off = r * 0.7;
-          playTone(ctx, 440, now + off, 0.6, 'sine', 1.0, dest);
-          playTone(ctx, 880, now + off, 0.4, 'sine', 0.8, dest);
-        }
+        playTone(ctx, 440, now, 0.6, 'sine', 1.0, dest);
+        playTone(ctx, 880, now, 0.4, 'sine', 0.8, dest);
         break;
       case 'chime':
-        for (let r = 0; r < 1; r++) {
-          const off = r * 0.7;
-          playTone(ctx, 523, now + off, 0.15, 'sine', 1.0, dest);
-          playTone(ctx, 659, now + off + 0.15, 0.15, 'sine', 1.0, dest);
-          playTone(ctx, 784, now + off + 0.3, 0.15, 'sine', 1.0, dest);
-          playTone(ctx, 1047, now + off + 0.45, 0.3, 'sine', 0.9, dest);
-        }
+        playTone(ctx, 523, now, 0.15, 'sine', 1.0, dest);
+        playTone(ctx, 659, now + 0.15, 0.15, 'sine', 1.0, dest);
+        playTone(ctx, 784, now + 0.3, 0.15, 'sine', 1.0, dest);
+        playTone(ctx, 1047, now + 0.45, 0.3, 'sine', 0.9, dest);
         break;
       case 'buzzer':
         for (let r = 0; r < 2; r++) {
@@ -97,20 +92,14 @@ export default function useAlarm() {
         }
         break;
       case 'soft':
-        for (let r = 0; r < 1; r++) {
-          const off = r * 0.8;
-          playTone(ctx, 600, now + off, 0.4, 'sine', 0.8, dest);
-          playTone(ctx, 800, now + off + 0.2, 0.5, 'sine', 0.7, dest);
-        }
+        playTone(ctx, 600, now, 0.4, 'sine', 0.8, dest);
+        playTone(ctx, 800, now + 0.2, 0.5, 'sine', 0.7, dest);
         break;
       case 'beep':
       default:
-        for (let r = 0; r < 1; r++) {
-          const off = r * 0.6;
-          playTone(ctx, 880, now + off, 0.15, 'sine', 1.0, dest);
-          playTone(ctx, 1100, now + off + 0.18, 0.15, 'sine', 1.0, dest);
-          playTone(ctx, 880, now + off + 0.36, 0.15, 'sine', 1.0, dest);
-        }
+        playTone(ctx, 880, now, 0.15, 'sine', 1.0, dest);
+        playTone(ctx, 1100, now + 0.18, 0.15, 'sine', 1.0, dest);
+        playTone(ctx, 880, now + 0.36, 0.15, 'sine', 1.0, dest);
         break;
     }
   }, [getCtx, getCompressor, playTone]);
@@ -135,5 +124,5 @@ export default function useAlarm() {
     playTone(ctx, 784, now + 0.2, 0.15, 'sine', 0.8);
   }, [getCtx, playTone]);
 
-  return { playAlarm, vibrate, playStartSound, ALARM_SOUNDS };
+  return { playAlarm, vibrate, playStartSound };
 }

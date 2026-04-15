@@ -1,5 +1,6 @@
 /**
  * @history
+ * 2026-04-15 — Change MINUTE_PRESETS 60→59 to avoid wrap-to-zero
  * 2026-04-15 — Fix 22px visual/collision mismatch: cy now derived from shared ANCHOR_OFFSET constants
  * 2026-04-15 — PieMenu: proximity-based highlight (38px threshold) before angle fallback
  * 2026-04-15 — PieMenu: no highlight when pointer drags to wrong side (below for up, above for down)
@@ -22,7 +23,7 @@ import PieMenu, { getOptionPositions, ANCHOR_OFFSET_UP, ANCHOR_OFFSET_DOWN } fro
 import ScrollPicker from './ScrollPicker';
 import { useI18n } from '@/lib/i18n';
 
-const MINUTE_PRESETS = [5, 10, 30, 60];
+const MINUTE_PRESETS = [5, 10, 30, 59];
 const SECOND_PRESETS = [10, 15, 30, 45];
 
 export function usePieMenu(options, onSelect, direction = 'up') {

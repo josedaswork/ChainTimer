@@ -1,5 +1,6 @@
 /**
  * @history
+ * 2026-04-15 — Fix variable shadowing: rename lambda params that shadowed i18n t()
  * 2026-04-15 — Add overflow-visible to popup containers to prevent PieMenu clipping
  * 2026-04-15 — Add 'reps' label next to series repeat button for clarity
  * 2026-04-14 — Start sound plays after countdown, not before
@@ -28,7 +29,7 @@ import useNotification from '../lib/useNotification';
 export default function TaskTimer({ taskId, onBack, onRunningChange }) {
   const { tasks, addInterval, updateInterval, deleteInterval, duplicateInterval, reorderIntervals } = useTasks();
   const { t } = useI18n();
-  const task = tasks.find(t => t.id === taskId);
+  const task = tasks.find(tk => tk.id === taskId);
   const intervals = task?.intervals || [];
   const mode = task?.type || 'serial';
   const isParallel = mode === 'parallel';
@@ -91,7 +92,7 @@ export default function TaskTimer({ taskId, onBack, onRunningChange }) {
     if (!hasStarted) return;
     let label, secs;
     if (isParallel && parallelTimers.length > 0) {
-      const active = parallelTimers.map((t, i) => ({ ...t, i })).filter(t => t.running && !t.done);
+      const active = parallelTimers.map((pt, i) => ({ ...pt, i })).filter(pt => pt.running && !pt.done);
       if (active.length === 0) return;
       const next = active.reduce((a, b) => a.secondsLeft < b.secondsLeft ? a : b);
       label = intervals[next.i]?.name || 'Timer';
@@ -120,12 +121,12 @@ export default function TaskTimer({ taskId, onBack, onRunningChange }) {
   const currentLabel = intervals[currentIndex]?.name || '';
   const currentColor = intervals.length > 0 ? getIntervalColor(currentIndex) : undefined;
 
-  const activeRunning = isParallel ? parallelTimers.filter(t => t.running && !t.done) : [];
+  const activeRunning = isParallel ? parallelTimers.filter(pt => pt.running && !pt.done) : [];
   const activeParallelIndex = activeRunning.length > 0
-    ? parallelTimers.reduce((minIdx, t, i, arr) => {
-        if (!t.running || t.done) return minIdx;
+    ? parallelTimers.reduce((minIdx, pt, i, arr) => {
+        if (!pt.running || pt.done) return minIdx;
         if (minIdx === -1) return i;
-        return t.secondsLeft < arr[minIdx].secondsLeft ? i : minIdx;
+        return pt.secondsLeft < arr[minIdx].secondsLeft ? i : minIdx;
       }, -1)
     : -1;
 
@@ -134,8 +135,8 @@ export default function TaskTimer({ taskId, onBack, onRunningChange }) {
   const parallelProgress = parallelTotal > 0 ? (parallelTotal - parallelSecondsLeft) / parallelTotal : 0;
   const parallelLabel = activeParallelIndex >= 0 ? intervals[activeParallelIndex]?.name : '';
   const parallelColor = activeParallelIndex >= 0 ? getIntervalColor(activeParallelIndex) : undefined;
-  const allParallelDone = isParallel && hasStarted && parallelTimers.length > 0 && parallelTimers.every(t => t.done);
-  const anyParallelRunning = parallelTimers.some(t => t.running && !t.done);
+  const allParallelDone = isParallel && hasStarted && parallelTimers.length > 0 && parallelTimers.every(pt => pt.done);
+  const anyParallelRunning = parallelTimers.some(pt => pt.running && !pt.done);
 
   return (
     <div className="min-h-screen bg-background flex flex-col">

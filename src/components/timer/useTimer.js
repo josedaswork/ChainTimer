@@ -1,5 +1,6 @@
 /**
  * @history
+ * 2026-04-15 — Remove dead anyRunning var, extract initParallelTimers helper
  * 2026-04-14 — 3-second countdown before serial start, series repeat (x1–x5)
  * 2026-04-14 — pauseSingle / startSingle for individual parallel timer control
  * 2026-04-14 — unskipIndex in parallel resets done timer to full time
@@ -10,6 +11,14 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
 
 export default function useTimer(intervals, onIntervalComplete, onAllComplete, mode = 'serial', seriesRepeat = 1) {
+  // Helper: create fresh parallel timer state from intervals
+  const initParallelTimers = useCallback(() =>
+    intervals.map(iv => {
+      const total = iv.minutes * 60 + (iv.seconds || 0);
+      return { secondsLeft: total, total, done: false, running: false };
+    }),
+  [intervals]);
+
   // --- Serial state ---
   const [currentIndex, setCurrentIndex] = useState(0);
   const [secondsLeft, setSecondsLeft] = useState(0);
@@ -101,15 +110,13 @@ export default function useTimer(intervals, onIntervalComplete, onAllComplete, m
     if (tickRef.current) return; // already ticking
     tickRef.current = setInterval(() => {
       const timers = stateRef.current.parallelTimers;
-      let anyRunning = false;
-      const updated = timers.map((t, i) => {
-        if (!t.running || t.done) return t;
-        if (t.secondsLeft <= 1) {
+      const updated = timers.map((pt, i) => {
+        if (!pt.running || pt.done) return pt;
+        if (pt.secondsLeft <= 1) {
           onIntervalComplete?.(i);
-          return { ...t, secondsLeft: 0, done: true, running: false };
+          return { ...pt, secondsLeft: 0, done: true, running: false };
         }
-        anyRunning = true;
-        return { ...t, secondsLeft: t.secondsLeft - 1 };
+        return { ...pt, secondsLeft: pt.secondsLeft - 1 };
       });
 
       setParallelTimers(updated);
@@ -236,12 +243,7 @@ export default function useTimer(intervals, onIntervalComplete, onAllComplete, m
     setCountdownLeft(null); setCurrentRepetition(1);
 
     if (mode === 'parallel') {
-      const timers = intervals.map(i => ({
-        secondsLeft: i.minutes * 60 + (i.seconds || 0),
-        total: i.minutes * 60 + (i.seconds || 0),
-        done: false,
-        running: false,
-      }));
+      const timers = initParallelTimers();
       setParallelTimers(timers);
       stateRef.current.parallelTimers = timers;
     } else {
@@ -250,7 +252,7 @@ export default function useTimer(intervals, onIntervalComplete, onAllComplete, m
       setSecondsLeft(total);
       stateRef.current = { ...stateRef.current, currentIndex: 0, secondsLeft: total };
     }
-  }, [intervals, mode]);
+  }, [intervals, mode, initParallelTimers]);
 
   useEffect(() => () => clearTick(), []);
 
@@ -272,12 +274,7 @@ export default function useTimer(intervals, onIntervalComplete, onAllComplete, m
   useEffect(() => {
     if (!hasStarted) {
       if (mode === 'parallel') {
-        const timers = intervals.map(i => ({
-          secondsLeft: i.minutes * 60 + (i.seconds || 0),
-          total: i.minutes * 60 + (i.seconds || 0),
-          done: false,
-          running: false,
-        }));
+        const timers = initParallelTimers();
         setParallelTimers(timers);
         stateRef.current.parallelTimers = timers;
       } else {
@@ -287,7 +284,7 @@ export default function useTimer(intervals, onIntervalComplete, onAllComplete, m
         stateRef.current = { ...stateRef.current, currentIndex: 0, secondsLeft: total };
       }
     }
-  }, [intervals, hasStarted, mode]);
+  }, [intervals, hasStarted, mode, initParallelTimers]);
 
   // ======================== SKIP ========================
   const skipIndex = useCallback((index) => {
