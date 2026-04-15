@@ -107,4 +107,10 @@ describe('i18n', () => {
       }
     }
   });
+
+  it('reps key exists in every language', () => {
+    for (const [lang, dict] of Object.entries(translations)) {
+      expect(dict.reps, `${lang}.reps missing`).toBeDefined();
+    }
+  });
 });

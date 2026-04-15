@@ -1,5 +1,6 @@
 /**
  * @history
+ * 2026-04-15 — Add 'reps' key for series repeat button label
  * 2026-04-14 — Add getReady, seriesRound keys for countdown and repeat
  * 2026-04-14 — Removed flag emojis from LANGUAGES labels
  * 2026-04-14 — Created: i18n system with 5 languages (es/en/fr/ca/pt)
@@ -46,6 +47,7 @@ const translations = {
     editInterval: 'Editar intervalo',
     getReady: '¡Prepárate!',
     seriesRound: 'Ronda {current}/{total}',
+    reps: 'reps',
 
     // Home
     taskInProgress: 'Tarea en curso',
@@ -108,6 +110,7 @@ const translations = {
     editInterval: 'Edit interval',
     getReady: 'Get ready!',
     seriesRound: 'Round {current}/{total}',
+    reps: 'reps',
     taskInProgress: 'Task in progress',
     switchTaskConfirm: 'You have an active timer. Do you want to stop it and start a new one?',
     yesSwitch: 'Yes, switch',
@@ -160,6 +163,7 @@ const translations = {
     editInterval: 'Modifier l\'intervalle',
     getReady: 'Préparez-vous !',
     seriesRound: 'Tour {current}/{total}',
+    reps: 'reps',
     taskInProgress: 'Tâche en cours',
     switchTaskConfirm: 'Vous avez un minuteur actif. Voulez-vous l\'arrêter et en démarrer un nouveau ?',
     yesSwitch: 'Oui, changer',
@@ -212,6 +216,7 @@ const translations = {
     editInterval: 'Editar interval',
     getReady: 'Prepara\'t!',
     seriesRound: 'Ronda {current}/{total}',
+    reps: 'reps',
     taskInProgress: 'Tasca en curs',
     switchTaskConfirm: 'Tens una tasca amb el temporitzador actiu. Vols abandonar-la i començar-ne una de nova?',
     yesSwitch: 'Sí, canviar',
@@ -264,6 +269,7 @@ const translations = {
     editInterval: 'Editar intervalo',
     getReady: 'Prepare-se!',
     seriesRound: 'Rodada {current}/{total}',
+    reps: 'reps',
     taskInProgress: 'Tarefa em andamento',
     switchTaskConfirm: 'Você tem um temporizador ativo. Deseja parar e iniciar um novo?',
     yesSwitch: 'Sim, trocar',

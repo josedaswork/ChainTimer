@@ -19,11 +19,12 @@ describe('getOptionPositions', () => {
   });
 
   it('positions are within radius bounds', () => {
-    const RADIUS = 52;
     const positions = getOptionPositions(5);
+    // All positions should be at the same distance from center (the computed radius)
+    const dist0 = Math.sqrt(positions[0].x ** 2 + positions[0].y ** 2);
     positions.forEach(p => {
       const dist = Math.sqrt(p.x * p.x + p.y * p.y);
-      expect(dist).toBeCloseTo(RADIUS, 0);
+      expect(dist).toBeCloseTo(dist0, 0);
     });
   });
 
@@ -31,6 +32,35 @@ describe('getOptionPositions', () => {
     const [pos] = getOptionPositions(1);
     expect(pos.x).toBeCloseTo(0, 0);
     expect(pos.y).toBeLessThan(0); // above center
+  });
+
+  it('circles do not overlap for 5 options', () => {
+    const CIRCLE_SIZE = 26;
+    const positions = getOptionPositions(5);
+    for (let i = 0; i < positions.length; i++) {
+      for (let j = i + 1; j < positions.length; j++) {
+        const dist = Math.sqrt(
+          (positions[i].x - positions[j].x) ** 2 +
+          (positions[i].y - positions[j].y) ** 2
+        );
+        expect(dist).toBeGreaterThanOrEqual(CIRCLE_SIZE);
+      }
+    }
+  });
+
+  it('radius increases for more options to avoid overlap', () => {
+    const pos4 = getOptionPositions(4);
+    const pos5 = getOptionPositions(5);
+    const r4 = Math.sqrt(pos4[0].x ** 2 + pos4[0].y ** 2);
+    const r5 = Math.sqrt(pos5[0].x ** 2 + pos5[0].y ** 2);
+    expect(r5).toBeGreaterThanOrEqual(r4);
+  });
+
+  it('down direction positions have positive y values', () => {
+    const positions = getOptionPositions(4, 'down');
+    positions.forEach(p => {
+      expect(p.y).toBeGreaterThan(0);
+    });
   });
 });
 

@@ -1,5 +1,6 @@
 /**
  * @history
+ * 2026-04-15 — Replace number inputs with ScrollPicker (vertical drag-scroll)
  * 2026-04-14 — Inline edit row for intervals (name, time, sound, vibration)
  */
 import React, { useState } from 'react';
@@ -7,17 +8,18 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Check, X, Volume2, Smartphone } from 'lucide-react';
 import { ALARM_SOUNDS } from './useAlarm';
+import ScrollPicker from './ScrollPicker';
 
 export default function IntervalEditRow({ interval, onSave, onCancel }) {
   const [name, setName] = useState(interval.name);
-  const [minutes, setMinutes] = useState(String(interval.minutes));
-  const [seconds, setSeconds] = useState(String(interval.seconds || 0));
+  const [minutes, setMinutes] = useState(parseInt(interval.minutes) || 0);
+  const [seconds, setSeconds] = useState(parseInt(interval.seconds) || 0);
   const [sound, setSound] = useState(interval.sound || 'beep');
   const [vibration, setVibration] = useState(interval.vibration || false);
 
   const handleSave = () => {
-    const m = Math.max(0, parseInt(minutes) || 0);
-    const s = Math.max(0, Math.min(59, parseInt(seconds) || 0));
+    const m = Math.max(0, minutes);
+    const s = Math.max(0, Math.min(59, seconds));
     if (m === 0 && s === 0) return;
     onSave({ name: name.trim() || interval.name, minutes: m, seconds: s, sound, vibration });
   };
@@ -27,9 +29,9 @@ export default function IntervalEditRow({ interval, onSave, onCancel }) {
       <Input value={name} onChange={e => setName(e.target.value)} placeholder="Nombre" className="h-10 text-sm bg-card" autoFocus />
       <div className="flex gap-2 items-center">
         <div className="flex gap-1 items-center flex-1">
-          <Input type="number" min="0" max="999" value={minutes} onChange={e => setMinutes(e.target.value)} className="h-10 w-20 text-center font-mono text-sm bg-card" placeholder="min" />
+          <ScrollPicker value={minutes} onChange={setMinutes} min={0} max={59} className="w-16 text-sm" />
           <span className="text-muted-foreground text-xs font-medium">m</span>
-          <Input type="number" min="0" max="59" value={seconds} onChange={e => setSeconds(e.target.value)} className="h-10 w-20 text-center font-mono text-sm bg-card" placeholder="seg" />
+          <ScrollPicker value={seconds} onChange={setSeconds} min={0} max={59} className="w-16 text-sm" />
           <span className="text-muted-foreground text-xs font-medium">s</span>
         </div>
         <Button size="icon" className="h-10 w-10 shrink-0" onClick={handleSave}><Check className="h-4 w-4" /></Button>

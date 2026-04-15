@@ -1,5 +1,6 @@
 /**
  * @history
+ * 2026-04-15 — Reduce alarm repetitions by 2 (3→1, 4→2)
  * 2026-04-14 — volumeScale param in playAlarm for preview at 60%
  * 2026-04-14 — playStartSound (3-note ascending chime on timer start)
  * 2026-04-14 — vibrate uses @capacitor/haptics with navigator.vibrate fallback
@@ -73,14 +74,14 @@ export default function useAlarm() {
 
     switch (soundId) {
       case 'bell':
-        for (let r = 0; r < 3; r++) {
+        for (let r = 0; r < 1; r++) {
           const off = r * 0.7;
           playTone(ctx, 440, now + off, 0.6, 'sine', 1.0, dest);
           playTone(ctx, 880, now + off, 0.4, 'sine', 0.8, dest);
         }
         break;
       case 'chime':
-        for (let r = 0; r < 3; r++) {
+        for (let r = 0; r < 1; r++) {
           const off = r * 0.7;
           playTone(ctx, 523, now + off, 0.15, 'sine', 1.0, dest);
           playTone(ctx, 659, now + off + 0.15, 0.15, 'sine', 1.0, dest);
@@ -89,14 +90,14 @@ export default function useAlarm() {
         }
         break;
       case 'buzzer':
-        for (let r = 0; r < 4; r++) {
+        for (let r = 0; r < 2; r++) {
           const off = r * 0.55;
           playTone(ctx, 220, now + off, 0.2, 'square', 0.9, dest);
           playTone(ctx, 220, now + off + 0.25, 0.2, 'square', 0.9, dest);
         }
         break;
       case 'soft':
-        for (let r = 0; r < 3; r++) {
+        for (let r = 0; r < 1; r++) {
           const off = r * 0.8;
           playTone(ctx, 600, now + off, 0.4, 'sine', 0.8, dest);
           playTone(ctx, 800, now + off + 0.2, 0.5, 'sine', 0.7, dest);
@@ -104,7 +105,7 @@ export default function useAlarm() {
         break;
       case 'beep':
       default:
-        for (let r = 0; r < 3; r++) {
+        for (let r = 0; r < 1; r++) {
           const off = r * 0.6;
           playTone(ctx, 880, now + off, 0.15, 'sine', 1.0, dest);
           playTone(ctx, 1100, now + off + 0.18, 0.15, 'sine', 1.0, dest);

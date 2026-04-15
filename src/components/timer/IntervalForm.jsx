@@ -1,5 +1,7 @@
 /**
  * @history
+ * 2026-04-15 — PieMenu: no highlight when pointer drags to wrong side (below for up, above for down)
+ * 2026-04-15 — Replace number inputs with ScrollPicker (vertical drag-scroll)
  * 2026-04-15 — Fix: PieMenu preventDefault on pointerDown to block Android text selection on long-press
  * 2026-04-14 — Blur input on long-press to prevent Android keyboard during PieMenu
  * 2026-04-14 — Export usePieMenu hook for reuse
@@ -15,6 +17,7 @@ import { Input } from "@/components/ui/input";
 import { Plus, Volume2, Smartphone, Check } from "lucide-react";
 import useAlarm, { ALARM_SOUNDS } from './useAlarm';
 import PieMenu, { getOptionPositions } from './PieMenu';
+import ScrollPicker from './ScrollPicker';
 import { useI18n } from '@/lib/i18n';
 
 const MINUTE_PRESETS = [5, 10, 30, 60];
@@ -31,12 +34,40 @@ export function usePieMenu(options, onSelect, direction = 'up') {
   // Create stable handlers once (useState setters are stable across renders)
   const handlersRef = useRef(null);
   if (!handlersRef.current) {
-    const THRESHOLD = 40;
-
     const detach = () => {
       window.removeEventListener('pointermove', move);
       window.removeEventListener('pointerup', up);
       window.removeEventListener('pointercancel', up);
+    };
+
+    // Find highlighted option using center→finger line intersection with arc
+    const findHighlight = (fingerX, fingerY) => {
+      const sp = r.current.sp;
+      const cx = r.current.cx;
+      const cy = r.current.cy;
+      const dir = r.current.dir;
+      if (!sp || sp.length === 0) return -1;
+
+      // If user drags to the wrong side (below center for 'up', above for 'down'), deselect
+      if (dir === 'up' && fingerY > cy) return -1;
+      if (dir === 'down' && fingerY < cy) return -1;
+
+      // Angle from center to finger
+      const fingerAngle = Math.atan2(fingerY - cy, fingerX - cx);
+
+      // Angle of each option from center
+      const angles = sp.map(p => Math.atan2(p.y - cy, p.x - cx));
+
+      // Find closest option by angle
+      let bestIdx = 0;
+      let bestDiff = Infinity;
+      for (let i = 0; i < angles.length; i++) {
+        let diff = Math.abs(fingerAngle - angles[i]);
+        if (diff > Math.PI) diff = 2 * Math.PI - diff;
+        if (diff < bestDiff) { bestDiff = diff; bestIdx = i; }
+      }
+
+      return bestIdx;
     };
 
     const move = (e) => {
@@ -48,13 +79,7 @@ export function usePieMenu(options, onSelect, direction = 'up') {
         }
         return;
       }
-      const sp = r.current.sp;
-      let minD = Infinity, near = -1;
-      for (let i = 0; i < sp.length; i++) {
-        const d = Math.hypot(e.clientX - sp[i].x, e.clientY - sp[i].y);
-        if (d < minD) { minD = d; near = i; }
-      }
-      const idx = minD <= THRESHOLD ? near : -1;
+      const idx = findHighlight(e.clientX, e.clientY);
       if (idx !== r.current.hi) {
         r.current.hi = idx;
         setHighlightedIndex(idx);
@@ -101,6 +126,9 @@ export function usePieMenu(options, onSelect, direction = 'up') {
         const cy = direction === 'down' ? rect.bottom + 6 : rect.top - 6;
         const pos = getOptionPositions(r.current.options.length, direction);
         r.current.sp = pos.map(p => ({ x: cx + p.x, y: cy + p.y }));
+        r.current.cx = cx;
+        r.current.cy = cy;
+        r.current.dir = direction;
       }
       r.current.vis = true;
       r.current.hi = -1;
@@ -118,15 +146,15 @@ export function usePieMenu(options, onSelect, direction = 'up') {
 
 export default function IntervalForm({ onAdd, disabled, compact = false, initialValues = null, submitLabel = null }) {
   const [name, setName] = useState(initialValues?.name || '');
-  const [minutes, setMinutes] = useState(initialValues ? String(initialValues.minutes) : '');
-  const [seconds, setSeconds] = useState(initialValues ? String(initialValues.seconds || 0) : '');
+  const [minutes, setMinutes] = useState(initialValues ? (parseInt(initialValues.minutes) || 0) : 0);
+  const [seconds, setSeconds] = useState(initialValues ? (parseInt(initialValues.seconds) || 0) : 0);
   const [sound, setSound] = useState(initialValues?.sound || 'beep');
   const [vibration, setVibration] = useState(initialValues?.vibration || false);
   const { playAlarm } = useAlarm();
   const { t } = useI18n();
   const soundLabels = { beep: t('soundBeep'), bell: t('soundBell'), chime: t('soundChime'), buzzer: t('soundBuzzer'), soft: t('soundSoft') };
-  const minutesPie = usePieMenu(MINUTE_PRESETS, (v) => setMinutes(v));
-  const secondsPie = usePieMenu(SECOND_PRESETS, (v) => setSeconds(v));
+  const minutesPie = usePieMenu(MINUTE_PRESETS, (v) => setMinutes(parseInt(v)));
+  const secondsPie = usePieMenu(SECOND_PRESETS, (v) => setSeconds(parseInt(v)));
   const pieActive = minutesPie.visible || secondsPie.visible;
 
   const handleSoundChange = (e) => {
@@ -137,11 +165,11 @@ export default function IntervalForm({ onAdd, disabled, compact = false, initial
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    const m = Math.max(0, parseInt(minutes) || 0);
-    const s = Math.max(0, Math.min(59, parseInt(seconds) || 0));
+    const m = Math.max(0, minutes);
+    const s = Math.max(0, Math.min(59, seconds));
     if (m === 0 && s === 0) return;
     onAdd({ name: name.trim() || t('defaultIntervalName'), minutes: m, seconds: s, sound, vibration, id: initialValues?.id || Date.now() });
-    if (!initialValues) { setName(''); setMinutes(''); setSeconds(''); setSound('beep'); setVibration(false); }
+    if (!initialValues) { setName(''); setMinutes(0); setSeconds(0); setSound('beep'); setVibration(false); }
   };
 
   const [showOptions, setShowOptions] = useState(false);
@@ -153,13 +181,17 @@ export default function IntervalForm({ onAdd, disabled, compact = false, initial
         <div className="flex gap-2">
           <Input placeholder={t('namePlaceholder')} value={name} onChange={(e) => setName(e.target.value)} disabled={disabled} className="h-10 text-sm bg-transparent flex-1" />
           <div ref={minutesPie.wrapperRef} onPointerDown={minutesPie.onPointerDown} onContextMenu={e => e.preventDefault()} className={`relative flex items-center ${minutesPie.visible ? 'z-20' : ''}`} style={{ touchAction: 'none' }}>
-            <Input type="number" min="0" max="999" placeholder="0" value={minutes} onChange={(e) => setMinutes(e.target.value)} disabled={disabled} className="h-10 w-14 text-center font-mono text-sm bg-transparent" />
-            <PieMenu options={MINUTE_PRESETS} highlightedIndex={minutesPie.highlightedIndex} visible={minutesPie.visible} />
+            <div className="relative w-14">
+              <ScrollPicker value={minutes} onChange={setMinutes} min={0} max={120} disabled={disabled} locked={minutesPie.visible} className="text-sm" />
+              <PieMenu options={MINUTE_PRESETS} highlightedIndex={minutesPie.highlightedIndex} visible={minutesPie.visible} />
+            </div>
           </div>
           <span className="text-xs text-muted-foreground self-center">m</span>
           <div ref={secondsPie.wrapperRef} onPointerDown={secondsPie.onPointerDown} onContextMenu={e => e.preventDefault()} className={`relative flex items-center ${secondsPie.visible ? 'z-20' : ''}`} style={{ touchAction: 'none' }}>
-            <Input type="number" min="0" max="59" placeholder="0" value={seconds} onChange={(e) => setSeconds(e.target.value)} disabled={disabled} className="h-10 w-14 text-center font-mono text-sm bg-transparent" />
-            <PieMenu options={SECOND_PRESETS} highlightedIndex={secondsPie.highlightedIndex} visible={secondsPie.visible} />
+            <div className="relative w-14">
+              <ScrollPicker value={seconds} onChange={setSeconds} min={0} max={59} disabled={disabled} locked={secondsPie.visible} className="text-sm" />
+              <PieMenu options={SECOND_PRESETS} highlightedIndex={secondsPie.highlightedIndex} visible={secondsPie.visible} />
+            </div>
           </div>
           <span className="text-xs text-muted-foreground self-center">s</span>
           <Button type="submit" disabled={disabled} size="sm" className="h-10 px-3 shrink-0"><Plus className="h-4 w-4" /></Button>
@@ -190,15 +222,19 @@ export default function IntervalForm({ onAdd, disabled, compact = false, initial
       {pieActive && <div className="absolute -inset-3 bg-black/40 z-10 rounded-2xl pointer-events-none" />}
       <Input placeholder={t('intervalNamePlaceholder')} value={name} onChange={(e) => setName(e.target.value)} disabled={disabled} className="h-11 text-base bg-card" />
       <div className="flex gap-2">
-        <div ref={minutesPie.wrapperRef} onPointerDown={minutesPie.onPointerDown} onContextMenu={e => e.preventDefault()} className={`flex items-center gap-1 flex-1 relative ${minutesPie.visible ? 'z-20' : ''}`} style={{ touchAction: 'none' }}>
-          <Input type="number" min="0" max="999" placeholder="0" value={minutes} onChange={(e) => setMinutes(e.target.value)} disabled={disabled} className="h-11 text-center font-mono text-base bg-card" />
+        <div ref={minutesPie.wrapperRef} onPointerDown={minutesPie.onPointerDown} onContextMenu={e => e.preventDefault()} className={`flex items-center gap-1 flex-1 ${minutesPie.visible ? 'z-20' : ''}`} style={{ touchAction: 'none' }}>
+          <div className="relative flex-1">
+            <ScrollPicker value={minutes} onChange={setMinutes} min={0} max={59} disabled={disabled} locked={minutesPie.visible} className="text-base" />
+            <PieMenu options={MINUTE_PRESETS} highlightedIndex={minutesPie.highlightedIndex} visible={minutesPie.visible} />
+          </div>
           <span className="text-sm text-muted-foreground font-medium shrink-0">{t('min')}</span>
-          <PieMenu options={MINUTE_PRESETS} highlightedIndex={minutesPie.highlightedIndex} visible={minutesPie.visible} />
         </div>
-        <div ref={secondsPie.wrapperRef} onPointerDown={secondsPie.onPointerDown} onContextMenu={e => e.preventDefault()} className={`flex items-center gap-1 flex-1 relative ${secondsPie.visible ? 'z-20' : ''}`} style={{ touchAction: 'none' }}>
-          <Input type="number" min="0" max="59" placeholder="0" value={seconds} onChange={(e) => setSeconds(e.target.value)} disabled={disabled} className="h-11 text-center font-mono text-base bg-card" />
+        <div ref={secondsPie.wrapperRef} onPointerDown={secondsPie.onPointerDown} onContextMenu={e => e.preventDefault()} className={`flex items-center gap-1 flex-1 ${secondsPie.visible ? 'z-20' : ''}`} style={{ touchAction: 'none' }}>
+          <div className="relative flex-1">
+            <ScrollPicker value={seconds} onChange={setSeconds} min={0} max={59} disabled={disabled} locked={secondsPie.visible} className="text-base" />
+            <PieMenu options={SECOND_PRESETS} highlightedIndex={secondsPie.highlightedIndex} visible={secondsPie.visible} />
+          </div>
           <span className="text-sm text-muted-foreground font-medium shrink-0">{t('sec')}</span>
-          <PieMenu options={SECOND_PRESETS} highlightedIndex={secondsPie.highlightedIndex} visible={secondsPie.visible} />
         </div>
         <Button type="submit" disabled={disabled} className="h-11 px-4 shrink-0">{submitLabel ? <><Check className="h-4 w-4 mr-1" />{submitLabel}</> : <Check className="h-4 w-4" />}</Button>
       </div>

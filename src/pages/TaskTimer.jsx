@@ -1,5 +1,7 @@
 /**
  * @history
+ * 2026-04-15 — Add overflow-visible to popup containers to prevent PieMenu clipping
+ * 2026-04-15 — Add 'reps' label next to series repeat button for clarity
  * 2026-04-14 — Start sound plays after countdown, not before
  * 2026-04-14 — Series repeat multiplier (x1–x5 PieMenu), 3-second countdown
  * 2026-04-14 — i18n: all labels, buttons, toasts, notifications use t()
@@ -193,7 +195,7 @@ export default function TaskTimer({ taskId, onBack, onRunningChange }) {
                   style={{ touchAction: 'none' }}
                 >
                   <button className={cn("px-3 py-1 rounded-full text-xs font-bold transition-colors", seriesRepeat > 1 ? "bg-primary/15 text-primary" : "bg-muted text-muted-foreground")}>
-                    x{seriesRepeat}
+                    x{seriesRepeat} {t('reps')}
                   </button>
                   <PieMenu options={REPEAT_OPTIONS} highlightedIndex={repeatPie.highlightedIndex} visible={repeatPie.visible} direction="down" />
                 </div>
@@ -292,7 +294,7 @@ export default function TaskTimer({ taskId, onBack, onRunningChange }) {
               animate={{ y: 0 }}
               exit={{ y: 300 }}
               transition={{ type: 'spring', stiffness: 400, damping: 35 }}
-              className="bg-card rounded-t-2xl border-t border-border p-4 pb-8 w-full max-w-md"
+              className="bg-card rounded-t-2xl border-t border-border p-4 pb-8 w-full max-w-md overflow-visible"
               onClick={e => e.stopPropagation()}
             >
               <div className="w-10 h-1 rounded-full bg-muted-foreground/30 mx-auto mb-4" />
@@ -318,7 +320,7 @@ export default function TaskTimer({ taskId, onBack, onRunningChange }) {
               animate={{ y: 0 }}
               exit={{ y: 300 }}
               transition={{ type: 'spring', stiffness: 400, damping: 35 }}
-              className="bg-card rounded-t-2xl border-t border-border p-4 pb-8 w-full max-w-md"
+              className="bg-card rounded-t-2xl border-t border-border p-4 pb-8 w-full max-w-md overflow-visible"
               onClick={e => e.stopPropagation()}
             >
               <div className="w-10 h-1 rounded-full bg-muted-foreground/30 mx-auto mb-4" />
