@@ -1,5 +1,6 @@
 /**
  * @history
+ * 2026-04-15 — Smooth animated snap (lerp) instead of instant teleport
  * 2026-04-15 — Wrap-around (circular), smooth continuous rendering, locked prop
  * 2026-04-15 — Created: vertical drag-scroll number picker with momentum/deceleration
  */
@@ -10,6 +11,7 @@ const ITEM_H = 36;       // height of each number slot
 const VISIBLE = 5;        // render 5 slots for smooth wrap
 const DECEL = 0.94;       // momentum deceleration factor
 const MIN_VEL = 0.3;      // stop threshold
+const SNAP_SPEED = 0.18;  // lerp factor for smooth snap animation
 
 export default function ScrollPicker({ value, onChange, min = 0, max = 59, disabled, locked, className }) {
   const count = max - min + 1;
@@ -32,15 +34,27 @@ export default function ScrollPicker({ value, onChange, min = 0, max = 59, disab
   const [, forceRender] = useState(0);
   const rerender = useCallback(() => forceRender(c => c + 1), []);
 
-  const snapAndEmit = useCallback(() => {
-    // Snap to nearest item
+  const snapAnimate = useCallback(() => {
     let idx = Math.round(-r.current.y / ITEM_H);
     idx = wrap(idx);
-    r.current.y = -idx * ITEM_H;
-    const v = idx + min;
+    const target = -idx * ITEM_H;
+    const diff = target - r.current.y;
+    if (Math.abs(diff) < 0.5) {
+      // Close enough — finalize
+      r.current.y = target;
+      r.current.raf = null;
+      rerender();
+      onChange(idx + min);
+      return;
+    }
+    r.current.y += diff * SNAP_SPEED;
     rerender();
-    onChange(v);
+    r.current.raf = requestAnimationFrame(snapAnimate);
   }, [wrap, min, onChange, rerender]);
+
+  const snapAndEmit = useCallback(() => {
+    r.current.raf = requestAnimationFrame(snapAnimate);
+  }, [snapAnimate]);
 
   const animate = useCallback(() => {
     if (r.current.dragging) return;

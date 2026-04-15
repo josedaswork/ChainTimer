@@ -1,5 +1,6 @@
 /**
  * @history
+ * 2026-04-15 — Export ANCHOR_OFFSET_UP/DOWN constants shared with hit-detection
  * 2026-04-15 — Dynamic radius based on item count to prevent overlap, fix vertical offset
  * 2026-04-15 — Smaller circles (26px), tighter radius (40px), closer to trigger
  * 2026-04-14 — Fix down-direction arc order (x1→x5 left-to-right)
@@ -14,6 +15,11 @@ import { motion, AnimatePresence } from 'framer-motion';
 const CIRCLE_SIZE = 26;
 const MIN_GAP = 4;         // minimum gap between circles
 const ARC_SPAN = 130;      // degrees of arc
+
+// Anchor offsets: distance from parent edge to the PieMenu (0,0) origin
+// These MUST match the CSS positioning below and the hit-detection in usePieMenu
+export const ANCHOR_OFFSET_UP = -16;   // marginBottom (negative = into parent)
+export const ANCHOR_OFFSET_DOWN = 4;   // marginTop
 
 function getRadius(count) {
   if (count <= 1) return 38;
@@ -50,8 +56,8 @@ export default function PieMenu({ options, highlightedIndex, visible, direction 
           transition={{ duration: 0.12, ease: 'easeOut' }}
           className="absolute pointer-events-none z-50"
           style={isDown
-            ? { left: '50%', top: '100%', marginTop: 4 }
-            : { left: '50%', bottom: '100%', marginBottom: -16 }
+            ? { left: '50%', top: '100%', marginTop: ANCHOR_OFFSET_DOWN }
+            : { left: '50%', bottom: '100%', marginBottom: ANCHOR_OFFSET_UP }
           }
         >
           {positions.map((pos, i) => (

@@ -1,5 +1,6 @@
 /**
  * @history
+ * 2026-04-15 — Fix: swipe-menu buttons always behind card (z-0) so they hide when swiping back
  * 2026-04-15 — Fix: swipe-menu buttons use onPointerUp instead of onClick for reliable Android first-tap
  * 2026-04-14 — Fix: swipe-menu buttons z-index raised above card when revealed (Android first-tap fix)
  * 2026-04-14 — Fix: Android swipe-menu buttons now work on first tap (touch-action + stopPropagation)
@@ -85,7 +86,7 @@ function SwipeableRow({ interval, index, drag, snapshot, isActive, isDone, isSki
     <div className="relative overflow-hidden rounded-xl">
       {/* Action buttons behind the card (raised above card when revealed) */}
       <div
-        className={cn("absolute inset-y-0 left-0 flex items-center gap-1.5 pl-2", isRevealed ? "z-20" : "z-0")}
+        className="absolute inset-y-0 left-0 flex items-center gap-1.5 pl-2 z-0"
         style={{ touchAction: 'manipulation' }}
       >
         <button

@@ -1,5 +1,7 @@
 /**
  * @history
+ * 2026-04-15 — Fix 22px visual/collision mismatch: cy now derived from shared ANCHOR_OFFSET constants
+ * 2026-04-15 — PieMenu: proximity-based highlight (38px threshold) before angle fallback
  * 2026-04-15 — PieMenu: no highlight when pointer drags to wrong side (below for up, above for down)
  * 2026-04-15 — Replace number inputs with ScrollPicker (vertical drag-scroll)
  * 2026-04-15 — Fix: PieMenu preventDefault on pointerDown to block Android text selection on long-press
@@ -16,7 +18,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Plus, Volume2, Smartphone, Check } from "lucide-react";
 import useAlarm, { ALARM_SOUNDS } from './useAlarm';
-import PieMenu, { getOptionPositions } from './PieMenu';
+import PieMenu, { getOptionPositions, ANCHOR_OFFSET_UP, ANCHOR_OFFSET_DOWN } from './PieMenu';
 import ScrollPicker from './ScrollPicker';
 import { useI18n } from '@/lib/i18n';
 
@@ -40,7 +42,8 @@ export function usePieMenu(options, onSelect, direction = 'up') {
       window.removeEventListener('pointercancel', up);
     };
 
-    // Find highlighted option using center→finger line intersection with arc
+    // Find highlighted option: proximity first, then angle-based fallback
+    const HIGHLIGHT_THRESHOLD = 38; // px — generous touch radius around each option
     const findHighlight = (fingerX, fingerY) => {
       const sp = r.current.sp;
       const cx = r.current.cx;
@@ -52,13 +55,22 @@ export function usePieMenu(options, onSelect, direction = 'up') {
       if (dir === 'up' && fingerY > cy) return -1;
       if (dir === 'down' && fingerY < cy) return -1;
 
-      // Angle from center to finger
-      const fingerAngle = Math.atan2(fingerY - cy, fingerX - cx);
+      // Direct proximity check: highlight if finger is close to any option circle
+      let closestByDist = -1;
+      let closestDist = Infinity;
+      for (let i = 0; i < sp.length; i++) {
+        const dist = Math.hypot(fingerX - sp[i].x, fingerY - sp[i].y);
+        if (dist < closestDist) { closestDist = dist; closestByDist = i; }
+      }
+      if (closestDist <= HIGHLIGHT_THRESHOLD) return closestByDist;
 
-      // Angle of each option from center
+      // Fallback: angle-based matching when finger is far from options but on correct side
+      const distFromCenter = Math.hypot(fingerX - cx, fingerY - cy);
+      if (distFromCenter < 15) return -1; // too close to center, angle is unreliable
+
+      const fingerAngle = Math.atan2(fingerY - cy, fingerX - cx);
       const angles = sp.map(p => Math.atan2(p.y - cy, p.x - cx));
 
-      // Find closest option by angle
       let bestIdx = 0;
       let bestDiff = Infinity;
       for (let i = 0; i < angles.length; i++) {
@@ -123,7 +135,10 @@ export function usePieMenu(options, onSelect, direction = 'up') {
       if (wrapperRef.current) {
         const rect = wrapperRef.current.getBoundingClientRect();
         const cx = rect.left + rect.width / 2;
-        const cy = direction === 'down' ? rect.bottom + 6 : rect.top - 6;
+        // cy must match the PieMenu CSS anchor: origin sits at parent edge + offset
+        const cy = direction === 'down'
+          ? rect.bottom + ANCHOR_OFFSET_DOWN
+          : rect.top - ANCHOR_OFFSET_UP;  // minus negative = + offset into parent
         const pos = getOptionPositions(r.current.options.length, direction);
         r.current.sp = pos.map(p => ({ x: cx + p.x, y: cy + p.y }));
         r.current.cx = cx;
